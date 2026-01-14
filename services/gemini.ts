@@ -3,34 +3,45 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Site } from "../types.ts";
 
 export class GeminiService {
-  private _ai: GoogleGenAI | null = null;
-
-  private get ai(): GoogleGenAI {
-    if (!this._ai) {
-      const apiKey = process.env.API_KEY;
-      if (!apiKey) {
-        throw new Error("Gemini API Key is missing. Please ensure process.env.API_KEY is available.");
-      }
-      this._ai = new GoogleGenAI({ apiKey });
+  // Utility to get a fresh AI instance with the current API key
+  private getClient(): GoogleGenAI {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      throw new Error("Gemini API Key is missing. Please ensure it is configured in your environment.");
     }
-    return this._ai;
+    return new GoogleGenAI({ apiKey });
+  }
+
+  // Utility to safely parse JSON from model responses
+  private safeParse(text: string | undefined): any {
+    if (!text) return null;
+    try {
+      // Remove potential markdown code blocks if the model includes them despite the mimeType config
+      const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanJson);
+    } catch (e) {
+      console.error("Failed to parse Gemini JSON response:", text);
+      throw new Error("The AI returned an invalid data format. Please try again.");
+    }
   }
 
   async analyzeProjectStatus(sites: Site[]) {
+    const ai = this.getClient();
     const summary = sites.map(s => ({
       id: s.id,
       vendor: s.currentVendor,
       status: s.status,
-      risk: s.riskLevel
+      risk: s.riskLevel,
+      region: s.region
     }));
 
-    const response = await this.ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
       contents: `Analyze the following swap project data for Ericsson replacing Huawei/Nokia equipment for Globe Telecom. Provide strategic insights, risk mitigation plans, and priority sites.
       
       Data: ${JSON.stringify(summary)}`,
       config: {
-        systemInstruction: "You are a world-class network deployment strategist. Provide concise, professional, and actionable insights based on site inventory data. Return only valid JSON.",
+        systemInstruction: "You are a world-class network deployment strategist for Ericsson. Analyze site data and provide actionable technical and logistics insights. Return only valid JSON.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -38,23 +49,24 @@ export class GeminiService {
             strategicInsights: { type: Type.ARRAY, items: { type: Type.STRING } },
             riskMitigation: { type: Type.ARRAY, items: { type: Type.STRING } },
             priorities: { type: Type.ARRAY, items: { type: Type.STRING } },
-            projectHealth: { type: Type.STRING, description: 'A health percentage, e.g. "85%"' }
+            projectHealth: { type: Type.STRING, description: 'A health percentage score (e.g., "85%")' }
           },
           required: ["strategicInsights", "riskMitigation", "priorities", "projectHealth"]
         }
       }
     });
 
-    return JSON.parse(response.text || '{}');
+    return this.safeParse(response.text);
   }
 
   async generateDeploymentSchedule(sites: Site[]) {
-    const response = await this.ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+    const ai = this.getClient();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
       contents: `Create an optimized 4-week deployment schedule for the following sites. Group by region and minimize travel time. Use ISO dates starting from today.
       Sites: ${JSON.stringify(sites.filter(s => s.status !== 'Completed').map(s => ({id: s.id, name: s.name, region: s.region})))}`,
       config: {
-        systemInstruction: "You are a logistics expert specializing in telecommunications infrastructure rollouts. Return only valid JSON.",
+        systemInstruction: "You are a logistics expert specializing in telecommunications infrastructure rollouts. Return only valid JSON array.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -70,15 +82,16 @@ export class GeminiService {
         }
       }
     });
-    return JSON.parse(response.text || '[]');
+    return this.safeParse(response.text);
   }
 
   async getSwapPlan(site: Site) {
-    const response = await this.ai.models.generateContent({
-      model: 'gemini-3-pro-preview',
+    const ai = this.getClient();
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
       contents: `Create a detailed technical swap plan for site ${site.id} (${site.name}). 
       Current Vendor: ${site.currentVendor}. Target: Ericsson. 
-      Equipment to swap: ${JSON.stringify(site.equipment)}.
+      Equipment: ${JSON.stringify(site.equipment)}.
       Provide a step-by-step procedure for the field technicians.`,
       config: {
         systemInstruction: "You are a senior Ericsson field engineer creating technical methods of procedure (MOP) for network equipment swaps. Return only valid JSON.",
@@ -105,7 +118,7 @@ export class GeminiService {
       }
     });
 
-    return JSON.parse(response.text || '{}');
+    return this.safeParse(response.text);
   }
 }
 
