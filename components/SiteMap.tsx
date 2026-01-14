@@ -2,7 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Site, SiteStatus } from '../types.ts';
 
-// Use global Leaflet instance provided by script tag in index.html
+// Use global Leaflet instance provided by script tags in index.html
 declare const L: any;
 
 interface SiteMapProps {
@@ -45,7 +45,18 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
         maxZoom: 20
       }).addTo(mapRef.current);
 
-      markersRef.current = L.layerGroup().addTo(mapRef.current);
+      // Initialize MarkerClusterGroup instead of LayerGroup
+      // Only use clustering for the main map, not necessarily for the mini preview
+      if (!mini && L.markerClusterGroup) {
+        markersRef.current = L.markerClusterGroup({
+          showCoverageOnHover: false,
+          maxClusterRadius: 50,
+          spiderfyOnMaxZoom: true,
+          disableClusteringAtZoom: 16
+        }).addTo(mapRef.current);
+      } else {
+        markersRef.current = L.layerGroup().addTo(mapRef.current);
+      }
     }
 
     // Update markers
@@ -81,7 +92,7 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
       });
 
       // Fit bounds if not mini and we have valid sites
-      const validSites = sites.filter(s => s.lat && s.lng);
+      const validSites = (sites || []).filter(s => s.lat && s.lng);
       if (!mini && validSites.length > 0) {
         const bounds = L.latLngBounds(validSites.map(s => [s.lat, s.lng]));
         mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
@@ -89,7 +100,7 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
     }
 
     return () => {
-      // Optional: Cleanup logic
+      // Cleanup is handled by map object persistence in ref
     };
   }, [sites, mini, onSiteClick]);
 
