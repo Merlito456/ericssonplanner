@@ -134,32 +134,47 @@ const App: React.FC = () => {
     const user = dbService.getCurrentUser();
     if (user) { 
       setCurrentUser(user); 
-      dbService.getSites().then(setSites); 
+      dbService.getSites().then(data => setSites(Array.isArray(data) ? data : [])); 
     }
   }, []);
 
   const isAdmin = currentUser?.role === UserRole.Admin;
 
   const stats = useMemo(() => {
-    const total = sites.length;
-    const completed = sites.filter(s => s.status === SiteStatus.COMPLETED).length;
+    const data = sites || [];
+    const total = data.length;
+    const completed = data.filter(s => s.status === SiteStatus.COMPLETED).length;
     const progress = total > 0 ? (completed / total) * 100 : 0;
-    const highRisk = sites.filter(s => s.risk_level === RiskLevel.High).length;
-    const inProgress = sites.filter(s => s.status === SiteStatus.IN_PROGRESS).length;
+    const highRisk = data.filter(s => s.risk_level === RiskLevel.High).length;
+    const inProgress = data.filter(s => s.status === SiteStatus.IN_PROGRESS).length;
     return { total, completed, progress, highRisk, inProgress };
   }, [sites]);
 
   const filteredSites = useMemo(() => {
-    const q = searchQuery.toLowerCase();
-    return sites.filter(s => s.id.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
+    const q = searchQuery.toLowerCase().trim();
+    return (sites || []).filter(s => 
+      (s.id?.toLowerCase() || '').includes(q) || 
+      (s.name?.toLowerCase() || '').includes(q)
+    );
   }, [sites, searchQuery]);
+
+  const handleOpenSite = (site: Site, mode: 'view' | 'edit' | 'create') => {
+    setSelectedSite(site);
+    setFormData({ ...site });
+    setModalMode(mode);
+  };
 
   const handleSaveSite = async () => {
     if (!isAdmin) return;
+    if (!formData.id) {
+      alert("Error: Site ID is required for synchronization.");
+      return;
+    }
     setIsDBOperation(true);
     try {
       const siteToSave = {
         ...formData,
+        name: formData.name || 'Unnamed Node',
         last_update: new Date().toISOString(),
         progress: formData.progress || 0,
         status: formData.status || SiteStatus.PENDING,
@@ -168,28 +183,39 @@ const App: React.FC = () => {
         tasks: formData.tasks || DEFAULT_TASKS.map(t => ({ ...t, site_id: formData.id! })),
         equipment: formData.equipment || []
       } as Site;
+      
       await dbService.upsertSite(siteToSave);
       const updatedData = await dbService.getSites();
-      setSites(updatedData);
+      setSites(Array.isArray(updatedData) ? updatedData : []);
       setSelectedSite(null);
+      setFormData({});
     } catch (e) { 
-      alert("Data Sync Error"); 
+      alert("Critical: Sync operation aborted due to database conflict."); 
     } finally { 
       setIsDBOperation(false); 
     }
   };
 
   const handleEquipmentChange = (type: 'swapped' | 'install', field: keyof Equipment, value: string) => {
-    const currentEquip = formData.equipment || [];
+    const currentEquip = [...(formData.equipment || [])];
     const vendor = type === 'install' ? Vendor.ERICSSON : (formData.current_vendor as Vendor || Vendor.HUAWEI);
+    const targetType = type === 'install' ? 'Ericsson-Module' : 'Legacy-Module';
     
-    let equip = currentEquip.find(e => e.type === (type === 'install' ? 'Ericsson-Module' : 'Legacy-Module'));
-    if (!equip) {
-      equip = { id: Math.random().toString(), site_id: formData.id!, type: type === 'install' ? 'Ericsson-Module' : 'Legacy-Module', vendor, model: '', serial_number: '' };
-      currentEquip.push(equip);
+    let equipIdx = currentEquip.findIndex(e => e.type === targetType);
+    if (equipIdx === -1) {
+      currentEquip.push({ 
+        id: Math.random().toString(36).substr(2, 9), 
+        site_id: formData.id || '', 
+        type: targetType, 
+        vendor, 
+        model: '', 
+        serial_number: '' 
+      });
+      equipIdx = currentEquip.length - 1;
     }
-    (equip as any)[field] = value;
-    setFormData({ ...formData, equipment: [...currentEquip] });
+    
+    (currentEquip[equipIdx] as any)[field] = value;
+    setFormData({ ...formData, equipment: currentEquip });
   };
 
   const handleTaskToggle = async (siteId: string, taskId: string) => {
@@ -206,7 +232,7 @@ const App: React.FC = () => {
     try {
       await dbService.upsertSite(updatedSite);
       const updatedData = await dbService.getSites();
-      setSites(updatedData);
+      setSites(Array.isArray(updatedData) ? updatedData : []);
     } finally {
       setIsDBOperation(false);
     }
@@ -260,8 +286,9 @@ const App: React.FC = () => {
       const updatedSite = { ...site, technicalInstructions };
       await dbService.upsertSite(updatedSite);
       const updatedData = await dbService.getSites();
-      setSites(updatedData);
+      setSites(Array.isArray(updatedData) ? updatedData : []);
       setSelectedSite(updatedSite);
+      setFormData({ ...updatedSite });
     } catch (error: any) {
       console.error(error);
     } finally {
@@ -269,7 +296,7 @@ const App: React.FC = () => {
     }
   };
 
-  if (!currentUser) return <AuthPage onAuth={u => { setCurrentUser(u); dbService.getSites().then(setSites); }} />;
+  if (!currentUser) return <AuthPage onAuth={u => { setCurrentUser(u); dbService.getSites().then(data => setSites(Array.isArray(data) ? data : [])); }} />;
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-['Inter']">
@@ -280,7 +307,6 @@ const App: React.FC = () => {
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1">
           <NavItem active={activeTab === 'monitoring'} onClick={() => setActiveTab('monitoring')} icon={<LayoutDashboard size={18}/>} label="Dashboard" />
-          {/* Fix: Added missing 'Database' import at the top of the file */}
           <NavItem active={activeTab === 'sites'} onClick={() => setActiveTab('sites')} icon={<Database size={18}/>} label="Inventory" />
           <NavItem active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={<Calendar size={18}/>} label="Planning" />
           <NavItem active={activeTab === 'actual'} onClick={() => setActiveTab('actual')} icon={<PlayCircle size={18}/>} label="Field Ops" />
@@ -366,7 +392,14 @@ const App: React.FC = () => {
             <div className="animate-in fade-in duration-500">
                <div className="flex justify-between items-center mb-8">
                   <h2 className="text-2xl font-bold">Project Inventory</h2>
-                  {isAdmin && <button onClick={() => { setModalMode('create'); setFormData({ id: `PH-G-${Math.floor(Math.random()*9999)}`, name: '', region: 'NCR', lat: 14.59, lng: 120.98, current_vendor: Vendor.HUAWEI, status: SiteStatus.PENDING, equipment: [] }); setSelectedSite({} as Site); }} className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-all"><Plus size={18}/> New Site</button>}
+                  {isAdmin && (
+                    <button 
+                      onClick={() => handleOpenSite({ id: `PH-G-${Math.floor(Math.random()*9999)}`, name: '', region: 'NCR', lat: 14.59, lng: 120.98, current_vendor: Vendor.HUAWEI, status: SiteStatus.PENDING, equipment: [], target_vendor: Vendor.ERICSSON, risk_level: RiskLevel.Low, progress: 0, last_update: new Date().toISOString() } as Site, 'create')} 
+                      className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-all"
+                    >
+                      <Plus size={18}/> New Site
+                    </button>
+                  )}
                </div>
                <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden">
                  <table className="w-full text-left">
@@ -375,7 +408,7 @@ const App: React.FC = () => {
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                      {filteredSites.map(s => (
-                       <tr key={s.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => { setSelectedSite(s); setModalMode('view'); }}>
+                       <tr key={s.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => handleOpenSite(s, 'view')}>
                          <td className="px-6 py-4 font-bold">{s.id}</td>
                          <td className="px-6 py-4 text-sm font-medium">{s.name}</td>
                          <td className="px-6 py-4 text-xs font-bold text-blue-600">{s.current_vendor}</td>
@@ -403,7 +436,7 @@ const App: React.FC = () => {
                     </div>
                  ) : (
                    sites.filter(s => s.status !== SiteStatus.COMPLETED).map(site => (
-                    <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group hover:border-blue-500 transition-all cursor-pointer" onClick={() => { setSelectedSite(site); setModalMode('view'); }}>
+                    <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group hover:border-blue-500 transition-all cursor-pointer" onClick={() => handleOpenSite(site, 'view')}>
                       <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div></div></div>
                       <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Deployment Date</div><div className="text-sm font-bold text-slate-700">{site.scheduled_date || 'TBD'}</div></div><button className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
                     </div>
@@ -442,7 +475,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'map' && <SiteMap sites={sites} onSiteClick={s => { setSelectedSite(s); setModalMode('view'); }} />}
+          {activeTab === 'map' && <SiteMap sites={sites} onSiteClick={s => handleOpenSite(s, 'view')} />}
 
           {activeTab === 'ai' && isAdmin && (
             <div className="animate-in slide-in-from-right-4 duration-500">
@@ -528,11 +561,11 @@ const App: React.FC = () => {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400">Latitude (DECIMAL)</label>
-                      <input type="number" step="0.00000001" value={formData.lat || ''} onChange={e=>setFormData({...formData, lat: parseFloat(e.target.value)})} className="w-full p-3 bg-white border border-blue-100 rounded-xl font-mono text-xs"/>
+                      <input type="number" step="0.00000001" value={formData.lat || ''} onChange={e=>setFormData({...formData, lat: parseFloat(e.target.value) || 0})} className="w-full p-3 bg-white border border-blue-100 rounded-xl font-mono text-xs"/>
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400">Longitude (DECIMAL)</label>
-                      <input type="number" step="0.00000001" value={formData.lng || ''} onChange={e=>setFormData({...formData, lng: parseFloat(e.target.value)})} className="w-full p-3 bg-white border border-blue-100 rounded-xl font-mono text-xs"/>
+                      <input type="number" step="0.00000001" value={formData.lng || ''} onChange={e=>setFormData({...formData, lng: parseFloat(e.target.value) || 0})} className="w-full p-3 bg-white border border-blue-100 rounded-xl font-mono text-xs"/>
                     </div>
                   </div>
                 </div>
@@ -606,7 +639,12 @@ const App: React.FC = () => {
                 )}
 
                 <div className="flex gap-4 pb-20">
-                  <button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors">
+                  <button 
+                    disabled={isDBOperation}
+                    onClick={handleSaveSite} 
+                    className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    {isDBOperation && <Loader2 className="animate-spin" size={20} />}
                     Commit to Database
                   </button>
                   <button onClick={() => setSelectedSite(null)} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-black hover:bg-slate-50 transition-colors text-slate-600">
