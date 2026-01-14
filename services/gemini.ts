@@ -3,11 +3,18 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Site } from "../types.ts";
 
 export class GeminiService {
-  private ai: GoogleGenAI;
+  private _ai: GoogleGenAI | null = null;
 
-  constructor() {
-    // Fix: Always use process.env.API_KEY directly in the constructor as per SDK guidelines
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  // Lazy-init the AI client to prevent crashes during module evaluation
+  private get ai(): GoogleGenAI {
+    if (!this._ai) {
+      const apiKey = process.env.API_KEY;
+      if (!apiKey) {
+        throw new Error("Gemini API Key is missing from process.env.API_KEY. Please ensure it is configured in your environment.");
+      }
+      this._ai = new GoogleGenAI({ apiKey });
+    }
+    return this._ai;
   }
 
   async analyzeProjectStatus(sites: Site[]) {
@@ -18,7 +25,6 @@ export class GeminiService {
       risk: s.riskLevel
     }));
 
-    // Use gemini-3-pro-preview for complex strategic analysis and reasoning
     const response = await this.ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Analyze the following swap project data for Ericsson replacing Huawei/Nokia equipment for Globe Telecom. Provide strategic insights, risk mitigation plans, and priority sites.
@@ -39,12 +45,10 @@ export class GeminiService {
       }
     });
 
-    // Fix: Directly access the .text property of GenerateContentResponse
     return JSON.parse(response.text || '{}');
   }
 
   async generateDeploymentSchedule(sites: Site[]) {
-    // Use gemini-3-pro-preview for optimization and scheduling tasks
     const response = await this.ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Create an optimized 4-week deployment schedule for the following sites. Group by region and minimize travel time. Use ISO dates starting from 2024-01-01.
@@ -65,12 +69,10 @@ export class GeminiService {
         }
       }
     });
-    // Fix: Directly access the .text property
     return JSON.parse(response.text || '[]');
   }
 
   async getSwapPlan(site: Site) {
-    // Use gemini-3-pro-preview for detailed technical task generation
     const response = await this.ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Create a detailed technical swap plan for site ${site.id} (${site.name}). 
@@ -101,7 +103,6 @@ export class GeminiService {
       }
     });
 
-    // Fix: Directly access the .text property
     return JSON.parse(response.text || '{}');
   }
 }
