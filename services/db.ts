@@ -1,11 +1,12 @@
 
-import { Site, User, UserRole, Equipment, DeploymentTask, Vendor, SiteStatus, RiskLevel, SiteMilestones } from "../types.ts";
+import { Site, User, UserRole, Equipment, DeploymentTask, Vendor, SiteStatus, RiskLevel, SiteMilestones, ActivityLog } from "../types.ts";
 
 const SITES_KEY = 'pg_sites_v1';
 const EQUIP_KEY = 'pg_equipment_v1';
 const TASKS_KEY = 'pg_tasks_v1';
 const USERS_KEY = 'pg_users_v1';
 const SESSION_KEY = 'pg_session_v1';
+const LOGS_KEY = 'pg_logs_v1';
 
 const DEFAULT_MILESTONES: SiteMilestones = {
   survey: { plan: '', actual: '' },
@@ -33,7 +34,6 @@ export class DatabaseService {
 
     return sites.map(s => ({
       ...s,
-      // CRITICAL: Ensure milestones exist even for legacy records to prevent crashes
       milestones: s.milestones || { ...DEFAULT_MILESTONES },
       equipment: equipment.filter(e => e.site_id === s.id),
       tasks: tasks.filter(t => t.site_id === s.id)
@@ -75,6 +75,22 @@ export class DatabaseService {
     if (!sitesRaw) return;
     const sites: Site[] = JSON.parse(sitesRaw);
     localStorage.setItem(SITES_KEY, JSON.stringify(sites.filter(s => s.id !== id)));
+  }
+
+  async getLogs(): Promise<ActivityLog[]> {
+    await this.delay();
+    const logsRaw = localStorage.getItem(LOGS_KEY);
+    return logsRaw ? JSON.parse(logsRaw) : [];
+  }
+
+  async addLog(log: Omit<ActivityLog, 'id'>): Promise<void> {
+    const logs = await this.getLogs();
+    const newLog: ActivityLog = {
+      ...log,
+      id: Math.random().toString(36).substr(2, 9),
+    };
+    logs.unshift(newLog); // Newest first
+    localStorage.setItem(LOGS_KEY, JSON.stringify(logs.slice(0, 500))); // Cap at 500 logs
   }
 
   private seedSites(): Site[] {
