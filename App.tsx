@@ -188,13 +188,12 @@ const App: React.FC = () => {
       await dbService.upsertSite(siteToSave);
       const updatedData = await dbService.getSites();
       
-      // Update state in batch to avoid inconsistent renders
       setSites(Array.isArray(updatedData) ? updatedData : []);
       setSelectedSite(null);
       setFormData({});
     } catch (e) { 
       console.error(e);
-      alert("Critical: Sync operation aborted due to database conflict."); 
+      alert("Critical: Sync operation aborted."); 
     } finally { 
       setIsDBOperation(false); 
     }
@@ -223,7 +222,8 @@ const App: React.FC = () => {
   };
 
   const handleTaskToggle = async (siteId: string, taskId: string) => {
-    const site = sites.find(s => s.id === siteId);
+    const data = sites || [];
+    const site = data.find(s => s.id === siteId);
     if (!site) return;
     const newTasks = site.tasks?.map(t => t.id === taskId ? { ...t, is_completed: !t.is_completed } : t) || [];
     const completedCount = newTasks.filter(t => t.is_completed).length;
@@ -244,10 +244,11 @@ const App: React.FC = () => {
 
   const handleAutoSchedule = async () => {
     if (!isAdmin) return;
+    const data = sites || [];
     setScheduling(true);
     try {
-      const schedule = await strategyEngine.generateDeploymentSchedule(sites);
-      const updatedSites = sites.map(s => {
+      const schedule = await strategyEngine.generateDeploymentSchedule(data);
+      const updatedSites = data.map(s => {
         const item = schedule.find((sch: any) => sch.siteId === s.id);
         if (item) return { ...s, scheduled_date: item.scheduledDate, status: SiteStatus.PLANNED };
         return s;
@@ -256,7 +257,7 @@ const App: React.FC = () => {
       setSites(updatedSites);
     } catch (error: any) {
       console.error(error);
-      alert("Local Scheduler error: " + error.message);
+      alert("Scheduling error: " + error.message);
     } finally {
       setScheduling(false);
     }
@@ -264,14 +265,15 @@ const App: React.FC = () => {
 
   const handleRunAiAnalysis = async () => {
     if (!isAdmin) return;
+    const data = sites || [];
     setLoadingAi(true);
     try {
-      const result = await strategyEngine.analyzeProjectStatus(sites);
+      const result = await strategyEngine.analyzeProjectStatus(data);
       setAiAnalysis(result);
       setActiveTab('ai');
     } catch (error: any) {
       console.error(error);
-      alert("Local Synthesis Failed.");
+      alert("Analysis Failed.");
     } finally {
       setLoadingAi(false);
     }
@@ -301,6 +303,9 @@ const App: React.FC = () => {
   };
 
   if (!currentUser) return <AuthPage onAuth={u => { setCurrentUser(u); dbService.getSites().then(data => setSites(Array.isArray(data) ? data : [])); }} />;
+
+  const pendingSites = (sites || []).filter(s => s?.status !== SiteStatus.COMPLETED);
+  const activeSites = (sites || []).filter(s => s?.status === SiteStatus.IN_PROGRESS);
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-['Inter']">
@@ -347,10 +352,10 @@ const App: React.FC = () => {
                 <div><h2 className="text-2xl font-bold text-slate-900">Project Overview</h2><p className="text-slate-500 text-sm mt-1">Real-time nationwide synchronization (Offline)</p></div>
               </div>
               <div className="grid grid-cols-4 gap-6">
-                <StatusCard icon={<Activity className="text-blue-500"/>} label="Project Health" value={`${stats.progress.toFixed(1)}%`} sub="Aggregate Sync" />
-                <StatusCard icon={<CheckCircle2 className="text-emerald-500"/>} label="Completed" value={stats.completed.toString()} sub="Verified Nodes" />
-                <StatusCard icon={<Clock className="text-amber-500"/>} label="In Field" value={stats.inProgress.toString()} sub="Active Ops" />
-                <StatusCard icon={<AlertTriangle className="text-red-500"/>} label="Blocked" value={stats.highRisk.toString()} sub="Risk Nodes" />
+                <StatusCard icon={<Activity className="text-blue-500"/>} label="Project Health" value={`${(stats?.progress || 0).toFixed(1)}%`} sub="Aggregate Sync" />
+                <StatusCard icon={<CheckCircle2 className="text-emerald-500"/>} label="Completed" value={(stats?.completed || 0).toString()} sub="Verified Nodes" />
+                <StatusCard icon={<Clock className="text-amber-500"/>} label="In Field" value={(stats?.inProgress || 0).toString()} sub="Active Ops" />
+                <StatusCard icon={<AlertTriangle className="text-red-500"/>} label="Blocked" value={(stats?.highRisk || 0).toString()} sub="Risk Nodes" />
               </div>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -360,7 +365,7 @@ const App: React.FC = () => {
                       <AreaChart data={[
                         { name: 'Week 1', progress: 5 },
                         { name: 'Week 2', progress: 12 },
-                        { name: 'Week 3', progress: stats.progress },
+                        { name: 'Week 3', progress: stats?.progress || 0 },
                       ]}>
                         <defs><linearGradient id="colorProg" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient></defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
@@ -377,9 +382,9 @@ const App: React.FC = () => {
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie data={[
-                            { name: 'Completed', value: stats.completed },
-                            { name: 'In Progress', value: stats.inProgress },
-                            { name: 'Pending', value: Math.max(0, stats.total - stats.completed - stats.inProgress) },
+                            { name: 'Completed', value: stats?.completed || 0 },
+                            { name: 'In Progress', value: stats?.inProgress || 0 },
+                            { name: 'Pending', value: Math.max(0, (stats?.total || 0) - (stats?.completed || 0) - (stats?.inProgress || 0)) },
                           ]} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                             {COLORS.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                           </Pie>
@@ -411,12 +416,12 @@ const App: React.FC = () => {
                      <tr><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">GPS Coordinates</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th></tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
-                     {filteredSites.map(s => (
+                     {(filteredSites || []).map(s => (
                        <tr key={s.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => handleOpenSite(s, 'view')}>
                          <td className="px-6 py-4 font-bold">{s.id}</td>
                          <td className="px-6 py-4 text-sm font-medium">{s.name}</td>
                          <td className="px-6 py-4 text-xs font-bold text-blue-600">{s.current_vendor}</td>
-                         <td className="px-6 py-4 text-[10px] font-mono text-slate-400">{s.lat.toFixed(4)}, {s.lng.toFixed(4)}</td>
+                         <td className="px-6 py-4 text-[10px] font-mono text-slate-400">{(s.lat || 0).toFixed(4)}, {(s.lng || 0).toFixed(4)}</td>
                          <td className="px-6 py-4"><span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase border ${s.status === SiteStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{s.status}</span></td>
                        </tr>
                      ))}
@@ -433,15 +438,15 @@ const App: React.FC = () => {
                   {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all disabled:opacity-50">{scheduling ? <Loader2 className="animate-spin" size={18}/> : <Calendar size={18}/>} Local Batch Plan</button>}
                </div>
                <div className="space-y-4">
-                 {sites.filter(s => s.status !== SiteStatus.COMPLETED).length === 0 ? (
+                 {pendingSites.length === 0 ? (
                     <div className="p-20 text-center bg-white border border-dashed border-slate-200 rounded-3xl">
                        <Calendar className="text-slate-200 mx-auto mb-4" size={48} />
                        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No sites pending scheduling.</p>
                     </div>
                  ) : (
-                   sites.filter(s => s.status !== SiteStatus.COMPLETED).map(site => (
+                   pendingSites.map(site => (
                     <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group hover:border-blue-500 transition-all cursor-pointer" onClick={() => handleOpenSite(site, 'view')}>
-                      <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div></div></div>
+                      <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">{site?.id?.slice(0,3) || '??'}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div></div></div>
                       <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Deployment Date</div><div className="text-sm font-bold text-slate-700">{site.scheduled_date || 'TBD'}</div></div><button className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
                     </div>
                    ))
@@ -454,18 +459,18 @@ const App: React.FC = () => {
             <div className="animate-in fade-in duration-500">
                <div className="mb-8"><h2 className="text-2xl font-bold text-slate-900">Field Handover</h2><p className="text-slate-500 text-sm mt-1">Local procedure execution tracking</p></div>
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {sites.filter(s => s.status === SiteStatus.IN_PROGRESS).length === 0 ? (
+                  {activeSites.length === 0 ? (
                     <div className="lg:col-span-2 p-20 text-center bg-white border border-dashed border-slate-200 rounded-3xl">
                        <PlayCircle className="text-slate-200 mx-auto mb-4" size={48} />
                        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No active field operations detected.</p>
                     </div>
                   ) : (
-                    sites.filter(s => s.status === SiteStatus.IN_PROGRESS).map(site => (
+                    activeSites.map(site => (
                       <div key={site.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden relative shadow-sm transition-all hover:shadow-md">
                         {isDBOperation && <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10"><Loader2 className="animate-spin text-blue-600" /></div>}
                         <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{site.id}</div><h3 className="text-xl font-bold mt-1">{site.name}</h3></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
                         <div className="p-6 space-y-3">
-                           {site.tasks?.map(task => (
+                           {(site.tasks || []).map(task => (
                              <div key={task.id} onClick={() => handleTaskToggle(site.id, task.id)} className={`p-4 rounded-2xl flex items-center justify-between cursor-pointer border transition-colors ${task.is_completed ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-100 hover:border-blue-200'}`}>
                                <div className="flex items-center gap-3"><div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${task.is_completed ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>{task.is_completed && <CheckCircle size={14}/>}</div><span className={`text-sm font-medium ${task.is_completed ? 'line-through opacity-60' : ''}`}>{task.label}</span></div>
                                <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase bg-slate-200 text-slate-500">{task.assigned_role}</span>
@@ -479,7 +484,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {activeTab === 'map' && <SiteMap sites={sites} onSiteClick={s => handleOpenSite(s, 'view')} />}
+          {activeTab === 'map' && <SiteMap sites={sites || []} onSiteClick={s => handleOpenSite(s, 'view')} />}
 
           {activeTab === 'ai' && isAdmin && (
             <div className="animate-in slide-in-from-right-4 duration-500">
@@ -501,14 +506,14 @@ const App: React.FC = () => {
                     <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl">
                       <h4 className="font-bold text-lg text-blue-400 mb-6 flex items-center gap-2"><Terminal size={20}/> Technical Insights</h4>
                       <ul className="space-y-6">
-                        {aiAnalysis.strategicInsights.map((insight: string, idx: number) => (
+                        {(aiAnalysis.strategicInsights || []).map((insight: string, idx: number) => (
                           <li key={idx} className="flex gap-4"><div className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-blue-500"></div><p className="text-slate-300 text-sm leading-relaxed">{insight}</p></li>
                         ))}
                       </ul>
                       <div className="mt-10 pt-8 border-t border-white/10">
                          <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Risk Management Vectors</h5>
                          <div className="space-y-3">
-                           {aiAnalysis.riskMitigation?.map((risk: string, i: number) => (
+                           {(aiAnalysis.riskMitigation || [])?.map((risk: string, i: number) => (
                              <div key={i} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl text-xs text-slate-400 border border-white/5"><Info size={14} className="text-amber-500"/> {risk}</div>
                            ))}
                          </div>
@@ -516,9 +521,9 @@ const App: React.FC = () => {
                     </div>
                     <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl text-white flex flex-col items-center justify-center text-center shadow-2xl">
                       <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4">Rollout Health Gradient</div>
-                      <div className="text-8xl font-black mb-4 tracking-tighter">{aiAnalysis.projectHealth}</div>
+                      <div className="text-8xl font-black mb-4 tracking-tighter">{aiAnalysis.projectHealth || '0%'}</div>
                       <div className="w-full max-w-xs bg-white/20 h-3 rounded-full overflow-hidden">
-                        <div className="bg-white h-full transition-all duration-1000" style={{width: aiAnalysis.projectHealth}}></div>
+                        <div className="bg-white h-full transition-all duration-1000" style={{width: aiAnalysis.projectHealth || '0%'}}></div>
                       </div>
                       <p className="mt-6 text-[10px] font-black uppercase text-blue-100 tracking-[0.3em]">Computed via Local Cognitive Core</p>
                     </div>
@@ -545,7 +550,7 @@ const App: React.FC = () => {
                   <h2 className="text-3xl font-black text-slate-900 tracking-tight">{modalMode === 'create' ? 'Register New Node' : 'Node Dossier'}</h2>
                   <p className="text-slate-400 text-xs font-bold uppercase mt-1 tracking-widest">Ericsson-Globe Nationwide Swap Project</p>
                 </div>
-                <button onClick={() => setSelectedSite(null)} className="p-2 bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors rounded-xl"><X size={20}/></button>
+                <button onClick={() => { setSelectedSite(null); setFormData({}); }} className="p-2 bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors rounded-xl"><X size={20}/></button>
               </div>
 
               <div className="space-y-8">
@@ -575,11 +580,11 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="p-6 bg-red-50 rounded-3xl border border-red-100 space-y-4">
-                  <h4 className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2"><RefreshCw size={14}/> Legacy Module (To Swapped Out)</h4>
+                  <h4 className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2"><RefreshCw size={14}/> Legacy Module</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1">
                       <label className="text-[10px] font-black text-slate-400">Current Vendor</label>
-                      <select value={formData.current_vendor} onChange={e=>setFormData({...formData, current_vendor: e.target.value as any})} className="w-full p-3 bg-white border border-red-100 rounded-xl font-bold text-sm outline-none">
+                      <select value={formData.current_vendor || Vendor.HUAWEI} onChange={e=>setFormData({...formData, current_vendor: e.target.value as any})} className="w-full p-3 bg-white border border-red-100 rounded-xl font-bold text-sm outline-none">
                         <option value={Vendor.HUAWEI}>Huawei</option>
                         <option value={Vendor.NOKIA}>Nokia</option>
                       </select>
@@ -613,11 +618,11 @@ const App: React.FC = () => {
                   <div className="bg-slate-900 rounded-3xl p-8 text-white relative shadow-xl overflow-hidden mb-8">
                     <div className="flex justify-between items-center mb-6">
                       <h4 className="font-bold text-lg flex items-center gap-2"><ShieldCheck size={22} className="text-emerald-400"/> Technical Procedure (MOP)</h4>
-                      {selectedSite.technicalInstructions && <span className="text-[9px] font-black uppercase text-emerald-400">Offline Optimized</span>}
+                      {selectedSite?.technicalInstructions && <span className="text-[9px] font-black uppercase text-emerald-400">Offline Optimized</span>}
                     </div>
-                    {selectedSite.technicalInstructions ? (
+                    {selectedSite?.technicalInstructions ? (
                       <div className="space-y-4">
-                        {selectedSite.technicalInstructions.steps.map((s, i) => (
+                        {(selectedSite.technicalInstructions.steps || []).map((s, i) => (
                           <div key={i} className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors">
                             <div className="text-blue-400 font-black text-xs">{i+1}.</div>
                             <div className="flex-1">
