@@ -5,6 +5,52 @@ const DB_KEY = 'ericsson_globe_planner_db_prod_v1';
 const USERS_KEY = 'ericsson_globe_users_v1';
 const SESSION_KEY = 'ericsson_session_v1';
 
+/**
+ * IDEMPOTENT SQL SCHEMA FOR BACKEND SETUP
+ * 
+ * -- 1. CREATE TYPES SAFELY
+ * DO $$
+ * BEGIN
+ *     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'user_role') THEN
+ *         CREATE TYPE user_role AS ENUM ('Admin', 'User');
+ *     END IF;
+ *     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'site_vendor') THEN
+ *         CREATE TYPE site_vendor AS ENUM ('Huawei', 'Nokia', 'Ericsson');
+ *     END IF;
+ *     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'site_status') THEN
+ *         CREATE TYPE site_status AS ENUM ('Pending', 'Surveyed', 'Planned', 'In Progress', 'Completed', 'Blocked');
+ *     END IF;
+ *     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'risk_level') THEN
+ *         CREATE TYPE risk_level AS ENUM ('Low', 'Medium', 'High');
+ *     END IF;
+ * END$$;
+ * 
+ * -- 2. CREATE TABLES
+ * CREATE TABLE IF NOT EXISTS users (
+ *     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+ *     email VARCHAR(255) UNIQUE NOT NULL,
+ *     name VARCHAR(100) NOT NULL,
+ *     password_hash TEXT NOT NULL,
+ *     role user_role DEFAULT 'User',
+ *     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+ * );
+ * 
+ * CREATE TABLE IF NOT EXISTS sites (
+ *     id VARCHAR(50) PRIMARY KEY, -- SITE ID
+ *     name VARCHAR(255) NOT NULL, -- SITE NAME
+ *     region VARCHAR(100) NOT NULL,
+ *     lat DECIMAL(10, 8) NOT NULL,
+ *     lng DECIMAL(11, 8) NOT NULL,
+ *     current_vendor site_vendor NOT NULL,
+ *     target_vendor site_vendor DEFAULT 'Ericsson',
+ *     status site_status DEFAULT 'Pending',
+ *     risk_level risk_level DEFAULT 'Low',
+ *     progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+ *     scheduled_date DATE,
+ *     last_update TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+ * );
+ */
+
 export class DatabaseService {
   private connectionString = "postgresql://postgres.hzcshylxfwqxoeovfimc:z2bkKiibM6UrjWkI@aws-1-ap-south-1.pooler.supabase.com:6543/postgres";
 
@@ -89,7 +135,6 @@ export class DatabaseService {
     const data = localStorage.getItem(USERS_KEY);
     let users: User[] = data ? JSON.parse(data) : [];
     
-    // Seed default admin account if it doesn't exist
     const defaultAdminEmail = 'admin@ericsson.com';
     if (!users.some(u => u.email.toLowerCase() === defaultAdminEmail.toLowerCase())) {
       users.push({
