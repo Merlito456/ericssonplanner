@@ -8,12 +8,15 @@ import {
   CheckCircle2, ChevronRight, Search, X, Calendar, PlayCircle, Clock, 
   Zap, Loader2, CheckCircle, Plus, RefreshCw, LogOut, 
   MapPin, Info, Wifi, Cpu, Globe, Terminal, ShieldCheck, Server,
-  Database, Trash2, ListFilter, BarChart3, Table as TableIcon, Sparkles
+  Database, Trash2, ListFilter, BarChart3, Table as TableIcon, Sparkles,
+  ClipboardList, ChevronLeft, CalendarDays, History, User as UserIcon
 } from 'lucide-react';
-import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, RiskLevel, SiteMilestones } from './types.ts';
+import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, RiskLevel, SiteMilestones, ActivityLog } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
 import { strategyEngine } from './services/strategyEngine.ts';
 import { dbService } from './services/db.ts';
+// Fix: Import GeminiService to handle AI features
+import { geminiService } from './services/gemini.ts';
 
 const COLORS = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#94a3b8'];
 
@@ -37,8 +40,8 @@ const DEFAULT_TASKS: DeploymentTask[] = [
 
 const NavItem: React.FC<{active: boolean, onClick: () => void, icon: React.ReactNode, label: string}> = ({active, onClick, icon, label}) => (
   <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}>
-    {icon}
-    <span className="text-xs font-bold uppercase tracking-widest">{label}</span>
+    <span className="shrink-0">{icon}</span>
+    <span className="text-xs font-bold uppercase tracking-widest truncate">{label}</span>
   </button>
 );
 
@@ -53,7 +56,8 @@ const StatusCard: React.FC<{icon: React.ReactNode, label: string, value: string,
   </div>
 );
 
-const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
+// Fix: Added missing AuthPage component to handle user authentication
+const AuthPage: React.FC<{ onAuth: (user: User) => Promise<void> }> = ({ onAuth }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -66,60 +70,220 @@ const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
     setLoading(true);
     setError('');
     try {
+      let user;
       if (isLogin) {
-        const user = await dbService.login(email, password);
-        onAuth(user);
+        user = await dbService.login(email, password);
       } else {
-        const user = await dbService.register(name, email, password);
-        onAuth(user);
+        user = await dbService.register(name, email, password);
       }
-    } catch (err: any) { 
-      setError(err.message); 
-    } finally { 
-      setLoading(false); 
+      await onAuth(user);
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="flex h-screen bg-white font-['Inter'] overflow-hidden">
-      <div className="hidden lg:flex flex-1 bg-slate-900 relative items-center justify-center p-20">
-         <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 to-slate-900 opacity-90"></div>
-         <div className="relative z-10 text-white max-w-lg">
-           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center font-black mb-10 shadow-2xl">E</div>
-           <h1 className="text-6xl font-black leading-tight mb-6">Nationwide Network Swap.</h1>
-           <p className="text-slate-400 text-xl leading-relaxed">Precision project management for the Ericsson-Globe infrastructure initiative.</p>
-         </div>
-      </div>
-      <div className="flex-1 flex items-center justify-center p-10 bg-slate-50">
-        <div className="w-full max-w-md">
-           <div className="mb-10">
-             <h2 className="text-3xl font-black text-slate-900">{isLogin ? 'Sign In' : 'Register'}</h2>
-             <p className="text-slate-500 mt-2 text-sm">Enterprise Nodal Planner Access</p>
-           </div>
-           <form onSubmit={handleSubmit} className="space-y-6">
-             {!isLogin && (
-               <div>
-                 <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Full Name</label>
-                 <input required value={name} onChange={e=>setName(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-colors" placeholder="Field Engineer"/>
-               </div>
-             )}
-             <div>
-               <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Enterprise Email</label>
-               <input required type="email" value={email} onChange={e=>setEmail(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-colors" placeholder="user@ericsson.com"/>
-             </div>
-             <div>
-               <label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Password</label>
-               <input required type="password" value={password} onChange={e=>setPassword(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl outline-none focus:border-blue-500 transition-colors" placeholder="••••••••"/>
-             </div>
-             {error && <div className="text-red-500 text-xs font-bold bg-red-50 p-3 rounded-xl border border-red-100">{error}</div>}
-             <button disabled={loading} className="w-full bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all">
-               {loading ? 'Processing...' : 'Enter Planner'}
-             </button>
-             <button type="button" onClick={() => setIsLogin(!isLogin)} className="w-full text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors">
-               {isLogin ? "Don't have an account? Register" : "Already have an account? Sign In"}
-             </button>
-           </form>
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-['Inter']">
+      <div className="w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl">
+        <div className="flex justify-center mb-8">
+          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-white text-3xl shadow-xl shadow-blue-600/20">E</div>
         </div>
+        <div className="text-center mb-10">
+          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Ericsson-Globe</h1>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Nodal Deployment Planner</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {!isLogin && (
+            <div className="space-y-2">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
+              <input 
+                type="text" 
+                required 
+                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:border-blue-500 transition-all outline-none" 
+                placeholder="John Doe"
+                value={name}
+                onChange={e => setName(e.target.value)}
+              />
+            </div>
+          )}
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+            <input 
+              type="email" 
+              required 
+              className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:border-blue-500 transition-all outline-none" 
+              placeholder="admin@ericsson.com"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Secure Password</label>
+            <input 
+              type="password" 
+              required 
+              className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:border-blue-500 transition-all outline-none" 
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+            />
+          </div>
+
+          {error && <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-[10px] font-bold uppercase text-center">{error}</div>}
+
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full bg-blue-600 text-white py-5 rounded-[1.5rem] font-black shadow-xl shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
+          >
+            {loading ? <Loader2 className="animate-spin mx-auto" size={20}/> : (isLogin ? 'Establish Session' : 'Register Credential')}
+          </button>
+        </form>
+
+        <div className="mt-8 text-center">
+          <button 
+            onClick={() => setIsLogin(!isLogin)}
+            className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 transition-colors"
+          >
+            {isLogin ? "Need a new operator account?" : "Already have credentials? Log In"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ActivityLogView: React.FC<{logs: ActivityLog[]}> = ({logs}) => (
+  <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-500">
+    <div className="p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+      <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2"><History size={16}/> Project Activity Audit Logs</h3>
+      <span className="text-[10px] font-bold text-slate-400 bg-white px-2 py-1 border border-slate-200 rounded-md">Last 500 Entries</span>
+    </div>
+    <div className="divide-y divide-slate-100 overflow-y-auto max-h-[calc(100vh-250px)]">
+      {logs.length === 0 ? (
+        <div className="p-20 text-center text-slate-400">
+          <ClipboardList size={48} className="mx-auto mb-4 opacity-20"/>
+          <p className="text-[10px] font-black uppercase tracking-widest">No activity recorded yet.</p>
+        </div>
+      ) : (
+        logs.map((log) => (
+          <div key={log.id} className="p-6 hover:bg-slate-50 transition-colors flex items-start gap-4">
+            <div className={`p-2 rounded-lg shrink-0 ${
+              log.type === 'create' ? 'bg-emerald-50 text-emerald-600' :
+              log.type === 'delete' ? 'bg-red-50 text-red-600' :
+              log.type === 'update' ? 'bg-blue-50 text-blue-600' :
+              log.type === 'auth' ? 'bg-amber-50 text-amber-600' :
+              'bg-slate-100 text-slate-600'
+            }`}>
+              {log.type === 'create' ? <Plus size={16}/> :
+               log.type === 'delete' ? <Trash2 size={16}/> :
+               log.type === 'update' ? <RefreshCw size={16}/> :
+               log.type === 'auth' ? <ShieldCheck size={16}/> :
+               <Info size={16}/>}
+            </div>
+            <div className="flex-1">
+              <div className="flex justify-between items-start mb-1">
+                <h4 className="text-sm font-bold text-slate-900">{log.action}</h4>
+                <span className="text-[10px] font-mono text-slate-400">{new Date(log.timestamp).toLocaleString()}</span>
+              </div>
+              <p className="text-xs text-slate-500 mb-2 leading-relaxed">{log.details}</p>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-tighter">
+                  <UserIcon size={10}/> {log.user_name}
+                </div>
+                <span className="w-1 h-1 bg-slate-300 rounded-full"></span>
+                <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">UID: {log.user_id}</span>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
+);
+
+const CalendarView: React.FC<{sites: Site[], onSiteClick: (s: Site) => void}> = ({sites, onSiteClick}) => {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  const daysInMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  const firstDayOfMonth = (date: Date) => new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+
+  const prevMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  const nextMonth = () => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+
+  const events = useMemo(() => {
+    const evs: Record<string, Array<{site: Site, milestone: string, type: 'plan' | 'actual'}>> = {};
+    sites.forEach(s => {
+      Object.entries(s.milestones).forEach(([key, val]) => {
+        if (val.plan) {
+          if (!evs[val.plan]) evs[val.plan] = [];
+          evs[val.plan].push({ site: s, milestone: key, type: 'plan' });
+        }
+        if (val.actual) {
+          if (!evs[val.actual]) evs[val.actual] = [];
+          evs[val.actual].push({ site: s, milestone: key, type: 'actual' });
+        }
+      });
+    });
+    return evs;
+  }, [sites]);
+
+  const days = Array.from({ length: daysInMonth(currentMonth) }, (_, i) => i + 1);
+  const startDay = firstDayOfMonth(currentMonth);
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-500">
+      <div className="p-6 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <h3 className="text-sm font-black text-slate-900 uppercase tracking-widest flex items-center gap-2"><CalendarDays size={16}/> Calendar of Activities</h3>
+        <div className="flex items-center gap-4">
+          <div className="flex gap-4 mr-6">
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-blue-100 rounded-full"></div><span className="text-[10px] font-bold text-slate-400 uppercase">Planned</span></div>
+            <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-emerald-500 rounded-full"></div><span className="text-[10px] font-bold text-slate-400 uppercase">Actual</span></div>
+          </div>
+          <div className="flex items-center gap-2 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+            <button onClick={prevMonth} className="p-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronLeft size={16}/></button>
+            <span className="px-4 text-xs font-black uppercase tracking-widest text-slate-700 min-w-[150px] text-center">
+              {currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}
+            </span>
+            <button onClick={nextMonth} className="p-2 hover:bg-slate-50 rounded-lg transition-colors"><ChevronRight size={16}/></button>
+          </div>
+        </div>
+      </div>
+      <div className="grid grid-cols-7 border-b border-slate-100">
+        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
+          <div key={d} className="py-3 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50/50">{d}</div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 auto-rows-[120px]">
+        {Array.from({ length: startDay }).map((_, i) => (
+          <div key={`empty-${i}`} className="border-r border-b border-slate-100 bg-slate-50/20"></div>
+        ))}
+        {days.map(d => {
+          const dateKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+          const dayEvents = events[dateKey] || [];
+          return (
+            <div key={d} className="border-r border-b border-slate-100 p-2 overflow-y-auto hover:bg-slate-50/50 transition-colors">
+              <span className="text-[10px] font-black text-slate-300 mb-2 block">{d}</span>
+              <div className="space-y-1">
+                {dayEvents.map((ev, i) => (
+                  <button 
+                    key={i} 
+                    onClick={() => onSiteClick(ev.site)}
+                    className={`w-full text-left px-2 py-1 rounded-md text-[8px] font-bold truncate transition-all hover:scale-[1.02] ${
+                      ev.type === 'actual' ? 'bg-emerald-500 text-white shadow-sm' : 'bg-blue-50 text-blue-600 border border-blue-100'
+                    }`}
+                    title={`${ev.site.id}: ${ev.milestone.replace(/_/g, ' ')}`}
+                  >
+                    {ev.site.id} - {ev.milestone.replace(/_/g, ' ')}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -262,7 +426,8 @@ const SpreadsheetTable: React.FC<{sites: Site[]}> = ({sites}) => {
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
-  const [activeTab, setActiveTab] = useState<'monitoring' | 'sites' | 'plan' | 'actual' | 'map' | 'ai' | 'track'>('monitoring');
+  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [activeTab, setActiveTab] = useState<'monitoring' | 'sites' | 'plan' | 'actual' | 'map' | 'ai' | 'track' | 'calendar' | 'logs'>('monitoring');
   const [trackView, setTrackView] = useState<'table' | 'gantt'>('table');
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [modalMode, setModalMode] = useState<'view' | 'edit' | 'create'>('view');
@@ -272,15 +437,37 @@ const App: React.FC = () => {
   const [isDBOperation, setIsDBOperation] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [scheduling, setScheduling] = useState(false);
-  const [loadingWorkflow, setLoadingWorkflow] = useState(false);
 
   useEffect(() => {
     const user = dbService.getCurrentUser();
     if (user) { 
       setCurrentUser(user); 
-      dbService.getSites().then(data => setSites(Array.isArray(data) ? data : [])); 
+      refreshData();
     }
   }, []);
+
+  const refreshData = async () => {
+    const [sitesData, logsData] = await Promise.all([
+      dbService.getSites(),
+      dbService.getLogs()
+    ]);
+    setSites(Array.isArray(sitesData) ? sitesData : []);
+    setLogs(logsData);
+  };
+
+  const logActivity = async (action: string, details: string, type: ActivityLog['type']) => {
+    if (!currentUser) return;
+    await dbService.addLog({
+      user_id: currentUser.id,
+      user_name: currentUser.name,
+      action,
+      details,
+      timestamp: new Date().toISOString(),
+      type
+    });
+    const updatedLogs = await dbService.getLogs();
+    setLogs(updatedLogs);
+  };
 
   const isAdmin = currentUser?.role === UserRole.Admin;
 
@@ -319,6 +506,7 @@ const App: React.FC = () => {
     
     setIsDBOperation(true);
     try {
+      const isNew = modalMode === 'create';
       const siteToSave = {
         ...formData,
         name: formData.name || 'Unnamed Node',
@@ -333,9 +521,13 @@ const App: React.FC = () => {
       } as Site;
       
       await dbService.upsertSite(siteToSave);
-      const updatedData = await dbService.getSites();
+      await logActivity(
+        isNew ? 'Added New Site' : 'Updated Site Information',
+        `${isNew ? 'Created' : 'Modified'} node: ${siteToSave.id} (${siteToSave.name})`,
+        isNew ? 'create' : 'update'
+      );
       
-      setSites(Array.isArray(updatedData) ? updatedData : []);
+      await refreshData();
       setSelectedSite(null);
       setFormData({});
     } catch (e) { 
@@ -353,8 +545,8 @@ const App: React.FC = () => {
     setIsDBOperation(true);
     try {
       await dbService.deleteSite(id);
-      const updatedData = await dbService.getSites();
-      setSites(Array.isArray(updatedData) ? updatedData : []);
+      await logActivity('Deleted Site', `Removed node ${id} from the inventory permanently.`, 'delete');
+      await refreshData();
       setSelectedSite(null);
       setFormData({});
     } catch (e) {
@@ -372,7 +564,6 @@ const App: React.FC = () => {
 
   const handleSingleSiteAutoSchedule = async () => {
     if (!isAdmin) return;
-    // Set first milestone plan to today by default if nothing exists
     const newMilestones = await strategyEngine.generateMilestonePlan();
     setFormData({ 
       ...formData, 
@@ -380,6 +571,7 @@ const App: React.FC = () => {
       scheduled_date: newMilestones.survey.plan,
       status: SiteStatus.PLANNED
     });
+    await logActivity('Generated Milestone Plan', `Auto-calculated deployment timeline for node ${formData.id}.`, 'update');
   };
 
   const handleTaskToggle = async (siteId: string, taskId: string) => {
@@ -396,8 +588,8 @@ const App: React.FC = () => {
     setIsDBOperation(true);
     try {
       await dbService.upsertSite(updatedSite);
-      const updatedData = await dbService.getSites();
-      setSites(Array.isArray(updatedData) ? updatedData : []);
+      await logActivity('Task Updated', `Task status toggled for node ${siteId}. Overall progress: ${progress}%`, 'update');
+      await refreshData();
     } finally {
       setIsDBOperation(false);
     }
@@ -407,23 +599,19 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     setScheduling(true);
     try {
-      const schedule = await strategyEngine.generateDeploymentSchedule(sites);
+      // Use geminiService for intelligent batch planning
+      const schedule = await geminiService.generateDeploymentSchedule(sites);
       const updatedSites = await Promise.all(sites.map(async s => {
         const item = schedule.find((sch: any) => sch.siteId === s.id);
         if (item) {
-          // Also generate milestones based on the scheduled date for consistency
           const milestones = await strategyEngine.generateMilestonePlan(item.scheduledDate);
-          return { 
-            ...s, 
-            scheduled_date: item.scheduledDate, 
-            status: SiteStatus.PLANNED,
-            milestones: milestones
-          };
+          return { ...s, scheduled_date: item.scheduledDate, status: SiteStatus.PLANNED, milestones };
         }
         return s;
       }));
       for (const site of updatedSites) await dbService.upsertSite(site);
-      setSites(updatedSites);
+      await logActivity('Batch Schedule Generated', `Automated logistics analysis synchronized ${updatedSites.length} site timelines.`, 'system');
+      await refreshData();
     } catch (error: any) {
       console.error(error);
       alert("Scheduling error: " + error.message);
@@ -436,18 +624,32 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     setLoadingAi(true);
     try {
-      const result = await strategyEngine.analyzeProjectStatus(sites);
+      // Use geminiService for analysis
+      const result = await geminiService.analyzeProjectStatus(sites);
       setAiAnalysis(result);
+      await logActivity('AI Synthesis Triggered', 'Advanced cognitive core executed nationwide rollout health analysis.', 'system');
       setActiveTab('ai');
     } catch (error: any) {
       console.error(error);
-      alert("Analysis Failed.");
+      alert("Analysis Failed: " + error.message);
     } finally {
       setLoadingAi(false);
     }
   };
 
-  if (!currentUser) return <AuthPage onAuth={u => { setCurrentUser(u); dbService.getSites().then(data => setSites(Array.isArray(data) ? data : [])); }} />;
+  // Fix: Render AuthPage if no user is authenticated
+  if (!currentUser) return <AuthPage onAuth={async u => { 
+    setCurrentUser(u); 
+    await dbService.addLog({
+      user_id: u.id,
+      user_name: u.name,
+      action: 'User Login',
+      details: `Successful authentication into the Nodal Planner system.`,
+      timestamp: new Date().toISOString(),
+      type: 'auth'
+    });
+    refreshData();
+  }} />;
 
   const pendingSites = sites.filter(s => s.status !== SiteStatus.COMPLETED);
 
@@ -458,17 +660,37 @@ const App: React.FC = () => {
           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xl shadow-lg">E</div>
           <div><h1 className="text-white font-bold text-sm uppercase">Ericsson Globe</h1><p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Nodal Planner</p></div>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           <NavItem active={activeTab === 'monitoring'} onClick={() => setActiveTab('monitoring')} icon={<LayoutDashboard size={18}/>} label="Dashboard" />
           <NavItem active={activeTab === 'sites'} onClick={() => setActiveTab('sites')} icon={<Database size={18}/>} label="Inventory" />
           <NavItem active={activeTab === 'track'} onClick={() => setActiveTab('track')} icon={<ListFilter size={18}/>} label="Milestones" />
+          <NavItem active={activeTab === 'calendar'} onClick={() => setActiveTab('calendar')} icon={<CalendarDays size={18}/>} label="Activities" />
           <NavItem active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={<Calendar size={18}/>} label="Planning" />
           <NavItem active={activeTab === 'actual'} onClick={() => setActiveTab('actual')} icon={<PlayCircle size={18}/>} label="Field Ops" />
           <NavItem active={activeTab === 'map'} onClick={() => setActiveTab('map')} icon={<Globe size={18}/>} label="Deployment Map" />
+          <NavItem active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon={<ClipboardList size={18}/>} label="Activity Logs" />
           {isAdmin && <NavItem active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<Cpu size={18}/>} label="Cognitive Core" />}
         </nav>
-        <div className="p-4 border-t border-slate-800">
-          <button onClick={() => { dbService.logout(); setCurrentUser(null); }} className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"><LogOut size={14}/> Sign Out</button>
+        {/* Fix: Added Connect AI button to handle API key selection */}
+        <div className="p-4 space-y-2 border-t border-slate-800">
+          <button 
+            onClick={async () => {
+              if ((window as any).aistudio) {
+                await (window as any).aistudio.openSelectKey();
+              } else {
+                alert("AI Studio environment not detected.");
+              }
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600/10 text-blue-400 border border-blue-600/20 hover:bg-blue-600/20 transition-all group"
+          >
+            <Zap size={18} className="group-hover:text-blue-300 transition-colors" />
+            <span className="text-[10px] font-black uppercase tracking-widest">Connect AI Core</span>
+          </button>
+          <button onClick={async () => { 
+            await logActivity('User Logout', 'System session terminated by user.', 'auth');
+            dbService.logout(); 
+            setCurrentUser(null); 
+          }} className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"><LogOut size={14}/> Sign Out</button>
         </div>
       </aside>
 
@@ -495,7 +717,6 @@ const App: React.FC = () => {
                 <StatusCard icon={<Clock className="text-amber-500"/>} label="In Field" value={(stats?.inProgress || 0).toString()} sub="Active Ops" />
                 <StatusCard icon={<AlertTriangle className="text-red-500"/>} label="Blocked" value={(stats?.highRisk || 0).toString()} sub="Risk Nodes" />
               </div>
-              
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                  <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 h-[350px]">
                     <h3 className="font-bold text-slate-800 mb-6 uppercase text-[10px] tracking-widest text-slate-400">Execution Velocity</h3>
@@ -574,6 +795,9 @@ const App: React.FC = () => {
             </div>
           )}
 
+          {activeTab === 'calendar' && <CalendarView sites={sites} onSiteClick={(s) => handleOpenSite(s, 'view')} />}
+          {activeTab === 'logs' && <ActivityLogView logs={logs} />}
+
           {activeTab === 'track' && (
             <div className="animate-in fade-in duration-500 space-y-8">
               <div className="flex justify-between items-center">
@@ -651,7 +875,6 @@ const App: React.FC = () => {
                   <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><Cpu className="text-blue-600" size={28} /> Strategy Core</h2><p className="text-slate-500 text-sm mt-1">Advanced offline analysis of nodal telemetry</p></div>
                   <button onClick={handleRunAiAnalysis} disabled={loadingAi} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} Synthesize Data</button>
                </div>
-               
                {loadingAi && (
                  <div className="bg-white border border-slate-200 rounded-3xl p-20 text-center">
                     <Loader2 className="animate-spin text-blue-600 mx-auto mb-6" size={48} />
@@ -659,7 +882,6 @@ const App: React.FC = () => {
                     <p className="text-sm text-slate-500">Calculating regional risk density and hardware dependency chains...</p>
                  </div>
                )}
-
                {aiAnalysis && !loadingAi && (
                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl">
@@ -686,12 +908,6 @@ const App: React.FC = () => {
                       </div>
                       <p className="mt-6 text-[10px] font-black uppercase text-blue-100 tracking-[0.3em]">Computed via Local Cognitive Core</p>
                     </div>
-                 </div>
-               )}
-               {!aiAnalysis && !loadingAi && (
-                 <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-20 text-center">
-                    <Cpu className="text-slate-200 mx-auto mb-4" size={48} />
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Strategy analysis idle. Run synthesis to generate report.</p>
                  </div>
                )}
             </div>
