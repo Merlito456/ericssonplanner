@@ -95,3 +95,13 @@ export interface Site {
     generated_at: string;
   };
 }
+
+export interface ActivityLog {
+  id: string;
+  user_id: string;
+  user_name: string;
+  action: string;
+  details: string;
+  timestamp: string;
+  type: 'create' | 'update' | 'delete' | 'auth' | 'system';
+}
