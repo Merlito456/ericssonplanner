@@ -58,6 +58,20 @@ export interface TechnicalInstruction {
   safetyPrecaution: string;
 }
 
+export interface MilestoneEntry {
+  plan?: string;
+  actual?: string;
+}
+
+export interface SiteMilestones {
+  survey: MilestoneEntry;
+  survey_report: MilestoneEntry;
+  installation: MilestoneEntry;
+  integration: MilestoneEntry;
+  completion_report: MilestoneEntry;
+  site_close: MilestoneEntry;
+}
+
 export interface Site {
   id: string;
   name: string;
@@ -71,6 +85,7 @@ export interface Site {
   progress: number;
   scheduled_date?: string;
   last_update: string;
+  milestones: SiteMilestones;
   // UI-only aggregate fields
   equipment?: Equipment[];
   tasks?: DeploymentTask[];
