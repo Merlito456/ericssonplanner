@@ -135,6 +135,14 @@ const GanttChart: React.FC<{sites: Site[]}> = ({sites}) => {
     { key: 'site_close', label: 'Close' },
   ];
 
+  if (!sites || sites.length === 0) {
+    return (
+      <div className="p-12 text-center bg-white border border-slate-200 rounded-3xl">
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No site data available for timeline analysis.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
       <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
@@ -146,29 +154,33 @@ const GanttChart: React.FC<{sites: Site[]}> = ({sites}) => {
       </div>
       <div className="overflow-x-auto">
         <div className="min-w-[1200px] p-6 space-y-10">
-          {sites.map(site => (
-            <div key={site.id} className="space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-black text-slate-900">{site.id} - {site.name}</span>
-                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{site.progress}% Complete</span>
-              </div>
-              <div className="grid grid-cols-6 gap-3">
-                {milestonesList.map(m => {
-                  const data = (site.milestones as any)[m.key];
-                  return (
-                    <div key={m.key} className="space-y-2">
-                      <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter text-center">{m.label}</div>
-                      <div className="h-8 w-full bg-slate-50 rounded-lg relative overflow-hidden flex flex-col border border-slate-100">
-                        <div className={`h-1/2 w-full ${data?.plan ? 'bg-slate-200' : 'bg-transparent'}`} title={`Planned: ${data?.plan || 'N/A'}`}></div>
-                        <div className={`h-1/2 w-full ${data?.actual ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'bg-transparent'}`} title={`Actual: ${data?.actual || 'N/A'}`}></div>
+          {sites.map(site => {
+            // Defensive access to milestones
+            const ms = site.milestones || DEFAULT_MILESTONES;
+            return (
+              <div key={site.id} className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-900">{site.id} - {site.name}</span>
+                  <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{site.progress}% Complete</span>
+                </div>
+                <div className="grid grid-cols-6 gap-3">
+                  {milestonesList.map(m => {
+                    const data = (ms as any)[m.key] || { plan: '', actual: '' };
+                    return (
+                      <div key={m.key} className="space-y-2">
+                        <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter text-center">{m.label}</div>
+                        <div className="h-8 w-full bg-slate-50 rounded-lg relative overflow-hidden flex flex-col border border-slate-100">
+                          <div className={`h-1/2 w-full ${data.plan ? 'bg-slate-200' : 'bg-transparent'}`} title={`Planned: ${data.plan || 'N/A'}`}></div>
+                          <div className={`h-1/2 w-full ${data.actual ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]' : 'bg-transparent'}`} title={`Actual: ${data.actual || 'N/A'}`}></div>
+                        </div>
+                        <div className="text-[8px] font-mono font-bold text-slate-500 text-center">{data.actual || '--'}</div>
                       </div>
-                      <div className="text-[8px] font-mono font-bold text-slate-500 text-center">{data?.actual || '--'}</div>
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>
@@ -184,6 +196,14 @@ const SpreadsheetTable: React.FC<{sites: Site[]}> = ({sites}) => {
     { key: 'completion_report', label: 'Comp. Report' },
     { key: 'site_close', label: 'Site Close' },
   ];
+
+  if (!sites || sites.length === 0) {
+    return (
+      <div className="p-12 text-center bg-white border border-slate-200 rounded-3xl">
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No site records to display.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
@@ -207,27 +227,31 @@ const SpreadsheetTable: React.FC<{sites: Site[]}> = ({sites}) => {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {sites.map(s => (
-              <tr key={s.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-6 py-4 sticky left-0 bg-white z-10 border-r border-slate-200 font-bold text-xs">
-                  <div className="flex flex-col">
-                    <span className="text-slate-900">{s.id}</span>
-                    <span className="text-[10px] text-slate-400 font-normal truncate max-w-[180px]">{s.name}</span>
-                  </div>
-                </td>
-                {milestoneKeys.map(m => {
-                  const data = (s.milestones as any)[m.key];
-                  return (
-                    <React.Fragment key={m.key}>
-                      <td className="px-2 py-4 text-[10px] font-mono text-center border-r border-slate-100 text-slate-500">{data?.plan || '--'}</td>
-                      <td className={`px-2 py-4 text-[10px] font-mono text-center border-r border-slate-200 ${data?.actual ? 'text-blue-600 font-bold' : 'text-slate-300'}`}>
-                        {data?.actual || '--'}
-                      </td>
-                    </React.Fragment>
-                  );
-                })}
-              </tr>
-            ))}
+            {sites.map(s => {
+              // Defensive access to milestones
+              const ms = s.milestones || DEFAULT_MILESTONES;
+              return (
+                <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-6 py-4 sticky left-0 bg-white z-10 border-r border-slate-200 font-bold text-xs">
+                    <div className="flex flex-col">
+                      <span className="text-slate-900">{s.id}</span>
+                      <span className="text-[10px] text-slate-400 font-normal truncate max-w-[180px]">{s.name}</span>
+                    </div>
+                  </td>
+                  {milestoneKeys.map(m => {
+                    const data = (ms as any)[m.key] || { plan: '', actual: '' };
+                    return (
+                      <React.Fragment key={m.key}>
+                        <td className="px-2 py-4 text-[10px] font-mono text-center border-r border-slate-100 text-slate-500">{data.plan || '--'}</td>
+                        <td className={`px-2 py-4 text-[10px] font-mono text-center border-r border-slate-200 ${data.actual ? 'text-blue-600 font-bold' : 'text-slate-300'}`}>
+                          {data.actual || '--'}
+                        </td>
+                      </React.Fragment>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -273,8 +297,10 @@ const App: React.FC = () => {
   const filteredSites = useMemo(() => {
     const q = (searchQuery || '').toLowerCase().trim();
     return (sites || []).filter(s => 
-      (s?.id?.toLowerCase() || '').includes(q) || 
-      (s?.name?.toLowerCase() || '').includes(q)
+      s && (
+        (s.id?.toLowerCase() || '').includes(q) || 
+        (s.name?.toLowerCase() || '').includes(q)
+      )
     );
   }, [sites, searchQuery]);
 
