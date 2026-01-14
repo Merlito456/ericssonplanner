@@ -1,6 +1,5 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-// Import specific D3 modules to fix type resolution issues in strict environments
 import { 
   select, 
   geoMercator, 
@@ -26,25 +25,21 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
   useEffect(() => {
     if (!svgRef.current) return;
 
-    const width = svgRef.current.clientWidth;
+    const containerWidth = svgRef.current.parentElement?.clientWidth || 800;
     const height = mini ? 250 : 600;
     
-    // Fix: Use named import 'select' instead of property access on d3 namespace
     const svg = select(svgRef.current);
     svg.selectAll("*").remove();
 
     const g = svg.append("g");
 
-    // Fix: Use named import 'geoMercator' instead of property access on d3 namespace
     const projection = geoMercator()
-      .center([122, 13]) // Centered around the archipelago
+      .center([122, 13])
       .scale(mini ? 1200 : 2800)
-      .translate([width / 2, height / 2]);
+      .translate([containerWidth / 2, height / 2]);
 
-    // Fix: Use named import 'geoPath' instead of property access on d3 namespace
     const path = geoPath().projection(projection);
 
-    // Fix: Use named import 'zoom' (aliased as d3Zoom) instead of property access on d3 namespace
     const zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> = d3Zoom<SVGSVGElement, unknown>()
       .scaleExtent([1, 15])
       .on("zoom", (event) => {
@@ -58,12 +53,12 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
     setLoading(true);
     setError(false);
 
-    // Fix: Use named import 'json' (aliased as d3Json) instead of property access on d3 namespace
-    d3Json('https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/2023/geojson/provinces/lowres/philippines-provinces-lowres.json')
+    // Using JSDelivr CDN for better reliability and CORS handling
+    d3Json('https://cdn.jsdelivr.net/gh/faeldon/philippines-json-maps@master/2023/geojson/provinces/lowres/philippines-provinces-lowres.json')
       .then((data: any) => {
+        if (!data) throw new Error("No data received");
         setLoading(false);
         
-        // Land mass
         g.append("g")
           .selectAll("path")
           .data(data.features)
@@ -75,7 +70,6 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
           .attr("stroke-width", 0.5)
           .attr("class", "transition-colors duration-300 hover:fill-slate-200");
 
-        // Site markers
         const markers = g.append("g")
           .selectAll("g")
           .data(sites)
@@ -91,7 +85,6 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
             onSiteClick(d);
           });
 
-        // Glowing effect for markers
         markers.append("circle")
           .attr("r", mini ? 4 : 8)
           .attr("fill", d => {
@@ -124,7 +117,7 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
   }, [sites, mini, onSiteClick]);
 
   return (
-    <div className={`relative bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm ${mini ? 'h-[250px]' : 'w-full'}`}>
+    <div className={`relative bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm ${mini ? 'h-[250px]' : 'h-[600px] w-full'}`}>
       {!mini && (
         <div className="absolute top-6 left-6 z-10 space-y-2">
           <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-xl">
@@ -162,11 +155,11 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
         </div>
       )}
 
-      {!mini && (
+      {!mini && !error && !loading && (
         <div className="absolute top-6 right-6 z-10 flex flex-col gap-2">
-          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors"><ZoomIn size={18}/></button>
-          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors"><ZoomOut size={18}/></button>
-          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors"><Maximize2 size={18}/></button>
+          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors" title="Zoom In"><ZoomIn size={18}/></button>
+          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors" title="Zoom Out"><ZoomOut size={18}/></button>
+          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors" title="Reset"><Maximize2 size={18}/></button>
         </div>
       )}
 
