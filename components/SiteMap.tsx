@@ -1,7 +1,9 @@
 
 import React, { useEffect, useRef } from 'react';
-import L from 'leaflet';
 import { Site, SiteStatus } from '../types.ts';
+
+// Use global Leaflet instance provided by script tag in index.html
+declare const L: any;
 
 interface SiteMapProps {
   sites: Site[];
@@ -21,11 +23,11 @@ const getStatusColor = (status: SiteStatus) => {
 
 const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<L.Map | null>(null);
-  const markersRef = useRef<L.LayerGroup | null>(null);
+  const mapRef = useRef<any>(null);
+  const markersRef = useRef<any>(null);
 
   useEffect(() => {
-    if (!mapContainerRef.current) return;
+    if (!mapContainerRef.current || typeof L === 'undefined') return;
 
     // Initialize map
     if (!mapRef.current) {
@@ -51,6 +53,8 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
       markersRef.current.clearLayers();
 
       sites.forEach(site => {
+        if (!site.lat || !site.lng) return;
+        
         const color = getStatusColor(site.status);
         const iconSize = mini ? 10 : 14;
         
@@ -76,19 +80,16 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
         markersRef.current?.addLayer(marker);
       });
 
-      // Fit bounds if not mini and we have sites
-      if (!mini && sites.length > 0) {
-        const bounds = L.latLngBounds(sites.map(s => [s.lat, s.lng]));
+      // Fit bounds if not mini and we have valid sites
+      const validSites = sites.filter(s => s.lat && s.lng);
+      if (!mini && validSites.length > 0) {
+        const bounds = L.latLngBounds(validSites.map(s => [s.lat, s.lng]));
         mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
       }
     }
 
-    // Cleanup on unmount
     return () => {
-      if (mapRef.current) {
-        // We don't necessarily want to destroy the map if props change, 
-        // but the useEffect dependency on `sites` and `mini` handles updates.
-      }
+      // Optional: Cleanup logic
     };
   }, [sites, mini, onSiteClick]);
 
