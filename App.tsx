@@ -9,7 +9,7 @@ import {
   Terminal, X, Calendar, PlayCircle, Clock, ListTodo, TrendingUp, 
   Zap, Loader2, CheckCircle, FileText, Plus, Trash2, Edit2, Save, 
   History, MessageSquare, Radio, Server, ShieldCheck, RefreshCw, LogOut, Lock, User as UserIcon,
-  MapPin, Navigation, Info, Wifi, WifiOff
+  MapPin, Navigation, Info, Wifi, WifiOff, ExternalLink, Key
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
@@ -69,19 +69,19 @@ const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
          <div className="relative z-10 text-white max-w-lg">
            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-4xl font-black mb-10 shadow-2xl">E</div>
            <h1 className="text-6xl font-black leading-tight mb-6">Nationwide Network Swap.</h1>
-           <p className="text-slate-400 text-xl leading-relaxed">Modernization project planner for the Ericsson-Globe nationwide equipment replacement.</p>
+           <p className="text-slate-400 text-xl leading-relaxed">Precision project management for the Ericsson-Globe infrastructure modernization initiative.</p>
          </div>
       </div>
       <div className="flex-1 flex items-center justify-center p-10 bg-slate-50">
         <div className="w-full max-w-md animate-in fade-in slide-in-from-right duration-700">
            <div className="mb-10 text-center lg:text-left">
              <h2 className="text-3xl font-black text-slate-900">{isLogin ? 'Sign In' : 'Register'}</h2>
-             <p className="text-slate-500 mt-2">Enterprise Access Required</p>
+             <p className="text-slate-500 mt-2">Enterprise Telemetry Access</p>
            </div>
            <form onSubmit={handleSubmit} className="space-y-6">
              {!isLogin && (
                <div><label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Full Name</label>
-               <input type="text" required value={name} onChange={e=>setName(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="Ericsson Field Engineer"/></div>
+               <input type="text" required value={name} onChange={e=>setName(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="Field Engineer"/></div>
              )}
              <div><label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Enterprise Email</label>
              <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="user@ericsson.com"/></div>
@@ -93,7 +93,7 @@ const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
              </button>
            </form>
            <button onClick={() => setIsLogin(!isLogin)} className="mt-8 w-full text-slate-500 text-sm font-bold hover:text-blue-600 transition-colors">
-             {isLogin ? "Need an account? Contact Ops" : "Back to Login"}
+             {isLogin ? "Need an account? Contact Team Lead" : "Back to Login"}
            </button>
         </div>
       </div>
@@ -118,8 +118,8 @@ const App: React.FC = () => {
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const [isDBOperation, setIsDBOperation] = useState(false);
 
-  // Check if API key is present in environment
-  const isAiConfigured = !!process.env.API_KEY;
+  // Dynamic AI Configuration State
+  const [isAiConfigured, setIsAiConfigured] = useState(!!process.env.API_KEY);
 
   useEffect(() => {
     const init = async () => {
@@ -137,7 +137,27 @@ const App: React.FC = () => {
       }
     };
     init();
+
+    // Poll for API key presence if not initially found
+    const keyCheckInterval = setInterval(async () => {
+      const hasKey = !!process.env.API_KEY || (typeof window !== 'undefined' && (window as any).aistudio && await (window as any).aistudio.hasSelectedApiKey());
+      setIsAiConfigured(!!hasKey);
+    }, 2000);
+
+    return () => clearInterval(keyCheckInterval);
   }, []);
+
+  const handleOpenAiKeySelector = async () => {
+    if (typeof window !== 'undefined' && (window as any).aistudio) {
+      try {
+        await (window as any).aistudio.openSelectKey();
+        // Race condition mitigation: assume success and update state
+        setIsAiConfigured(true);
+      } catch (e) {
+        console.error("Failed to open key selector", e);
+      }
+    }
+  };
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
@@ -184,7 +204,11 @@ const App: React.FC = () => {
       setAiAnalysis(result);
       setActiveTab('ai');
     } catch (error: any) {
-      setAiError(error.message);
+      if (error.message.includes("entity was not found") || error.message.includes("missing")) {
+        setAiError("API connection lost. Please re-connect AI using the sidebar.");
+      } else {
+        setAiError(error.message);
+      }
     } finally {
       setLoadingAi(false);
     }
@@ -305,9 +329,12 @@ const App: React.FC = () => {
           <div className="flex items-start gap-4">
             <div className="bg-red-50 p-2 rounded-xl text-red-500 shrink-0"><AlertTriangle size={24}/></div>
             <div className="flex-1">
-              <h4 className="font-black text-slate-900 text-sm uppercase tracking-widest mb-1">Configuration Required</h4>
+              <h4 className="font-black text-slate-900 text-sm uppercase tracking-widest mb-1">AI Logic Fault</h4>
               <p className="text-xs text-slate-500 leading-relaxed mb-4">{aiError}</p>
-              <button onClick={() => setAiError(null)} className="text-[10px] font-black uppercase text-blue-600 tracking-widest hover:underline">Dismiss</button>
+              <div className="flex gap-4">
+                 <button onClick={() => { setAiError(null); handleOpenAiKeySelector(); }} className="text-[10px] font-black uppercase text-blue-600 tracking-widest hover:underline flex items-center gap-1"><RefreshCw size={12}/> Re-connect AI</button>
+                 <button onClick={() => setAiError(null)} className="text-[10px] font-black uppercase text-slate-400 tracking-widest hover:underline">Dismiss</button>
+              </div>
             </div>
           </div>
         </div>
@@ -317,7 +344,7 @@ const App: React.FC = () => {
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xl shadow-lg">E</div>
           <div>
-            <h1 className="text-white font-bold leading-none text-sm">Ericsson Globe</h1>
+            <h1 className="text-white font-bold leading-none text-sm uppercase tracking-tighter">Ericsson Globe</h1>
             <p className="text-[10px] text-slate-400 mt-1 font-bold uppercase tracking-widest">Swap Planner</p>
           </div>
         </div>
@@ -332,18 +359,36 @@ const App: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-slate-800 space-y-4">
-          {/* SYSTEM INTELLIGENCE STATUS */}
-          <div className={`px-4 py-3 rounded-xl border transition-all ${isAiConfigured ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+          {/* DYNAMIC SYSTEM INTELLIGENCE STATUS */}
+          <button 
+            onClick={handleOpenAiKeySelector}
+            className={`w-full px-4 py-3 rounded-xl border transition-all text-left group ${isAiConfigured ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20 hover:bg-red-500/10'}`}
+          >
             <div className="flex items-center gap-3">
-              {isAiConfigured ? <Wifi className="text-emerald-400" size={14}/> : <WifiOff className="text-red-400" size={14}/>}
+              {isAiConfigured ? (
+                <div className="relative">
+                  <Wifi className="text-emerald-400" size={14}/>
+                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span>
+                </div>
+              ) : (
+                <WifiOff className="text-red-400" size={14}/>
+              )}
               <div>
                 <p className={`text-[9px] font-black uppercase tracking-widest ${isAiConfigured ? 'text-emerald-400' : 'text-red-400'}`}>
                   {isAiConfigured ? 'AI Core: Active' : 'AI Core: Offline'}
                 </p>
-                <p className="text-[8px] text-slate-500 mt-0.5">Cloudflare Environs</p>
+                <p className="text-[8px] text-slate-500 mt-0.5 group-hover:text-slate-300 transition-colors">
+                  {isAiConfigured ? 'Cluster Synchronized' : 'Tap to Add Environment'}
+                </p>
               </div>
             </div>
-          </div>
+            {!isAiConfigured && (
+               <div className="mt-2 pt-2 border-t border-red-500/10 flex items-center justify-between">
+                  <span className="text-[8px] font-black text-red-400 uppercase tracking-widest">Connect API</span>
+                  <ExternalLink size={10} className="text-red-400"/>
+               </div>
+            )}
+          </button>
 
           <div className="px-4 py-3 bg-slate-800/40 rounded-xl flex items-center gap-3">
              <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-[10px] font-black">{currentUser.role[0]}</div>
@@ -357,14 +402,41 @@ const App: React.FC = () => {
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
           <div className="relative w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input type="text" placeholder="Search telemetry..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+            <input type="text" placeholder="Search telemetry..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
           <div className="flex items-center gap-4">
+             {!isAiConfigured && (
+               <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">
+                 <Info size={14}/> Billing Docs
+               </a>
+             )}
              {isAdmin && <button onClick={async () => { if(window.confirm('Purge local cache?')) { await dbService.clearDatabase(); setSites([]); } }} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><RefreshCw size={18}/></button>}
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 bg-[#fdfdfd]">
+          {!isAiConfigured && activeTab === 'ai' && (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in duration-700">
+               <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center text-red-500 shadow-inner">
+                 <Key size={48} className="animate-pulse"/>
+               </div>
+               <div className="max-w-md">
+                 <h2 className="text-2xl font-black text-slate-900 mb-2">AI Configuration Required</h2>
+                 <p className="text-slate-500 text-sm leading-relaxed mb-8">The Infrastructure Strategist requires a valid Gemini API Key to process nationwide swap telemetry. Please select or add your key to proceed.</p>
+                 <button 
+                  onClick={handleOpenAiKeySelector}
+                  className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-3 mx-auto"
+                 >
+                   <Wifi size={20}/> Connect Cloud Intelligence
+                 </button>
+                 <div className="mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-4">
+                    <span className="flex items-center gap-1"><ShieldCheck size={12}/> Secure Handshake</span>
+                    <span className="flex items-center gap-1"><Radio size={12}/> Cloudflare Integrated</span>
+                 </div>
+               </div>
+            </div>
+          )}
+
           {activeTab === 'monitoring' && (
             <div className="space-y-8 animate-in fade-in duration-500">
               <div className="flex justify-between items-end">
@@ -443,8 +515,8 @@ const App: React.FC = () => {
                          <td className="px-6 py-4"><span className={`px-2 py-1 rounded-md text-[10px] font-black border ${site.currentVendor === Vendor.HUAWEI ? 'bg-red-50 text-red-600 border-red-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{site.currentVendor}</span></td>
                          <td className="px-6 py-4"><div className="w-16 bg-slate-100 h-1 rounded-full"><div className="bg-blue-600 h-full" style={{width: `${site.progress || 0}%`}}></div></div></td>
                          <td className="px-6 py-4 flex gap-2">
-                           <button onClick={e => { e.stopPropagation(); setModalMode('edit'); setFormData(site); setSelectedSite(site); }} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400"><Edit2 size={16}/></button>
-                           {isAdmin && <button onClick={e => { e.stopPropagation(); handleDeleteSite(site.id); }} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-red-500"><Trash2 size={16}/></button>}
+                           <button onClick={e => { e.stopPropagation(); setModalMode('edit'); setFormData(site); setSelectedSite(site); }} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 transition-colors hover:text-blue-500"><Edit2 size={16}/></button>
+                           {isAdmin && <button onClick={e => { e.stopPropagation(); handleDeleteSite(site.id); }} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-red-500 transition-colors"><Trash2 size={16}/></button>}
                          </td>
                        </tr>
                      ))}
@@ -461,12 +533,19 @@ const App: React.FC = () => {
                   {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling || !isAiConfigured} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all disabled:opacity-50">{scheduling ? <Loader2 className="animate-spin" size={18}/> : <Calendar size={18}/>} AI Scheduler</button>}
                </div>
                <div className="space-y-4">
-                 {sites.filter(s => s.status !== SiteStatus.COMPLETED).map(site => (
-                   <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group">
-                     <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div></div></div>
-                     <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Target</div><div className="text-sm font-bold text-slate-700">{site.scheduledDate || 'TBD'}</div></div><button onClick={() => { setSelectedSite(site); setModalMode('view'); }} className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
-                   </div>
-                 ))}
+                 {sites.filter(s => s.status !== SiteStatus.COMPLETED).length === 0 ? (
+                    <div className="p-20 text-center bg-white border border-dashed border-slate-200 rounded-3xl">
+                       <Calendar className="text-slate-200 mx-auto mb-4" size={48} />
+                       <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No sites pending scheduling.</p>
+                    </div>
+                 ) : (
+                   sites.filter(s => s.status !== SiteStatus.COMPLETED).map(site => (
+                    <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group hover:border-blue-500 transition-all cursor-pointer" onClick={() => { setSelectedSite(site); setModalMode('view'); }}>
+                      <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div></div></div>
+                      <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Target</div><div className="text-sm font-bold text-slate-700">{site.scheduledDate || 'TBD'}</div></div><button className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
+                    </div>
+                   ))
+                 )}
                </div>
             </div>
           )}
@@ -475,31 +554,38 @@ const App: React.FC = () => {
             <div className="animate-in fade-in duration-500">
                <div className="mb-8"><h2 className="text-2xl font-bold text-slate-900">Field Handover</h2><p className="text-slate-500 text-sm mt-1">Live procedure tracking</p></div>
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {sites.filter(s => s.status === SiteStatus.IN_PROGRESS).map(site => (
-                    <div key={site.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden relative shadow-sm transition-all hover:shadow-md">
-                      {isDBOperation && <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10"><Loader2 className="animate-spin text-blue-600" /></div>}
-                      <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{site.id}</div><h3 className="text-xl font-bold mt-1">{site.name}</h3></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
-                      <div className="p-6 space-y-3">
-                         {site.tasks?.map(task => (
-                           <div key={task.id} onClick={() => handleTaskToggle(site.id, task.id)} className={`p-4 rounded-2xl flex items-center justify-between cursor-pointer border transition-colors ${task.isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-100 hover:border-blue-200'}`}>
-                             <div className="flex items-center gap-3"><div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${task.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>{task.isCompleted && <CheckCircle size={14}/>}</div><span className={`text-sm font-medium ${task.isCompleted ? 'line-through opacity-60' : ''}`}>{task.label}</span></div>
-                             <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase bg-slate-200 text-slate-500">{task.assignedRole}</span>
-                           </div>
-                         ))}
-                      </div>
+                  {sites.filter(s => s.status === SiteStatus.IN_PROGRESS).length === 0 ? (
+                    <div className="lg:col-span-2 p-20 text-center bg-white border border-dashed border-slate-200 rounded-3xl">
+                       <PlayCircle className="text-slate-200 mx-auto mb-4" size={48} />
+                       <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No active field operations.</p>
                     </div>
-                  ))}
+                  ) : (
+                    sites.filter(s => s.status === SiteStatus.IN_PROGRESS).map(site => (
+                      <div key={site.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden relative shadow-sm transition-all hover:shadow-md">
+                        {isDBOperation && <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10"><Loader2 className="animate-spin text-blue-600" /></div>}
+                        <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{site.id}</div><h3 className="text-xl font-bold mt-1">{site.name}</h3></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
+                        <div className="p-6 space-y-3">
+                           {site.tasks?.map(task => (
+                             <div key={task.id} onClick={() => handleTaskToggle(site.id, task.id)} className={`p-4 rounded-2xl flex items-center justify-between cursor-pointer border transition-colors ${task.isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-100 hover:border-blue-200'}`}>
+                               <div className="flex items-center gap-3"><div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${task.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>{task.isCompleted && <CheckCircle size={14}/>}</div><span className={`text-sm font-medium ${task.isCompleted ? 'line-through opacity-60' : ''}`}>{task.label}</span></div>
+                               <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase bg-slate-200 text-slate-500">{task.assignedRole}</span>
+                             </div>
+                           ))}
+                        </div>
+                      </div>
+                    ))
+                  )}
                </div>
             </div>
           )}
 
           {activeTab === 'map' && <SiteMap sites={sites} onSiteClick={s => { setSelectedSite(s); setModalMode('view'); }} />}
 
-          {activeTab === 'ai' && isAdmin && (
+          {activeTab === 'ai' && isAdmin && isAiConfigured && (
             <div className="animate-in slide-in-from-right-4 duration-500">
                <div className="mb-8 flex items-center justify-between">
                   <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><BrainCircuit className="text-blue-600" size={28} /> Project Strategist</h2><p className="text-slate-500 text-sm mt-1">Cognitive analysis of nationwide swap telemetry</p></div>
-                  <button onClick={handleRunAiAnalysis} disabled={loadingAi || !isAiConfigured} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} Synthesize</button>
+                  <button onClick={handleRunAiAnalysis} disabled={loadingAi} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} Synthesize</button>
                </div>
                
                {loadingAi && (
@@ -534,7 +620,14 @@ const App: React.FC = () => {
                       <div className="w-full max-w-xs bg-white/20 h-3 rounded-full overflow-hidden">
                         <div className="bg-white h-full transition-all duration-1000" style={{width: aiAnalysis.projectHealth}}></div>
                       </div>
+                      <p className="mt-6 text-[10px] font-black uppercase text-blue-100 tracking-[0.3em]">Telemetry Verified</p>
                     </div>
+                 </div>
+               )}
+               {!aiAnalysis && !loadingAi && (
+                 <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-20 text-center">
+                    <Radio className="text-slate-200 mx-auto mb-4" size={48} />
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No active strategy report generated.</p>
                  </div>
                )}
             </div>
@@ -561,8 +654,8 @@ const App: React.FC = () => {
                       <h2 className="text-4xl font-black text-slate-900">{selectedSite.name}</h2>
                     ) : (
                       <div className="space-y-4 w-full">
-                        <input placeholder="Site Name" value={formData.name || ''} onChange={e=>setFormData({...formData, name:e.target.value})} className="text-4xl font-black text-slate-900 border-b-2 border-slate-100 focus:border-blue-500 outline-none w-full bg-transparent pb-2" />
-                        <input disabled={modalMode === 'edit'} placeholder="Site ID" value={formData.id || ''} onChange={e=>setFormData({...formData, id:e.target.value})} className="text-xl font-bold border-b border-slate-100 focus:border-blue-500 outline-none w-full bg-transparent pb-1" />
+                        <input placeholder="Site Name" value={formData.name || ''} onChange={e=>setFormData({...formData, name:e.target.value})} className="text-4xl font-black text-slate-900 border-b-2 border-slate-100 focus:border-blue-500 outline-none w-full bg-transparent pb-2 transition-all" />
+                        <input disabled={modalMode === 'edit'} placeholder="Site ID" value={formData.id || ''} onChange={e=>setFormData({...formData, id:e.target.value})} className="text-xl font-bold border-b border-slate-100 focus:border-blue-500 outline-none w-full bg-transparent pb-1 transition-all" />
                       </div>
                     )}
                   </div>
