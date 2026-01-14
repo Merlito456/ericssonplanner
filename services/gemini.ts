@@ -19,18 +19,17 @@ export class GeminiService {
   }
 
   /**
-   * Validates API Key presence before initialization.
-   * Strictly follows GenAI SDK guidelines to use process.env.API_KEY directly.
+   * Initializes a fresh client for every request.
+   * This is critical for picking up keys selected via the openSelectKey() dialog.
    */
   private getClient(): GoogleGenAI {
-    if (!process.env.API_KEY) {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
       throw new Error(
-        "Infrastructure Intelligence Offline: API_KEY is missing. " +
-        "Ensure 'API_KEY' is set in Cloudflare Pages > Settings > Variables."
+        "AI Core Offline: No API key detected. Please use the 'Connect AI' button in the sidebar."
       );
     }
-    // Fix: Use process.env.API_KEY directly in the named parameter object to initialize the SDK as per guidelines
-    return new GoogleGenAI({ apiKey: process.env.API_KEY });
+    return new GoogleGenAI({ apiKey });
   }
 
   async analyzeProjectStatus(sites: Site[]) {
