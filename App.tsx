@@ -26,7 +26,6 @@ const DEFAULT_TASKS: DeploymentTask[] = [
   { id: '6', label: 'Acceptance Sign-off', isCompleted: false, assignedRole: 'Team Lead' },
 ];
 
-// Sub-components defined before App to ensure availability
 const NavItem: React.FC<{active: boolean, onClick: () => void, icon: React.ReactNode, label: string}> = ({active, onClick, icon, label}) => (
   <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}>{icon}<span className="text-xs font-bold uppercase tracking-widest">{label}</span></button>
 );
@@ -136,7 +135,6 @@ const App: React.FC = () => {
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const [isDBOperation, setIsDBOperation] = useState(false);
 
-  // Auth & Database Initialization
   useEffect(() => {
     const init = async () => {
       try {
@@ -281,6 +279,10 @@ const App: React.FC = () => {
 
   const handleSaveSite = async () => {
     if (!isAdmin) return;
+    if (!formData.id || !formData.name) {
+      alert("Site ID and Site Name are mandatory.");
+      return;
+    }
     setIsDBOperation(true);
     try {
       const siteToSave = { 
@@ -362,13 +364,12 @@ const App: React.FC = () => {
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-10 shrink-0">
           <div className="relative w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input type="text" placeholder="Search sites..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <input type="text" placeholder="Search by Site ID or Name..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
           <div className="flex items-center gap-4">
              {isAdmin && <button onClick={async () => { if(window.confirm('Purge DB?')) { await dbService.clearDatabase(); setSites([]); } }} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><RefreshCw size={18}/></button>}
              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-lg">
-                <Server size={14} className="text-slate-400"/>
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Pooler Active</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Active Project</span>
              </div>
           </div>
         </header>
@@ -439,12 +440,13 @@ const App: React.FC = () => {
                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                  <table className="w-full text-left">
                    <thead className="bg-slate-50 border-b border-slate-200">
-                     <tr><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Progress</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Action</th></tr>
+                     <tr><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Progress</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Action</th></tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                      {filteredSites.map(site => (
                        <tr key={site.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => { setSelectedSite(site); setModalMode('view'); }}>
                          <td className="px-6 py-4 font-bold text-slate-900">{site.id}</td>
+                         <td className="px-6 py-4 text-slate-700 text-sm font-medium">{site.name}</td>
                          <td className="px-6 py-4"><span className={`px-2 py-1 rounded-md text-[10px] font-black border ${site.currentVendor === Vendor.HUAWEI ? 'bg-red-50 text-red-600 border-red-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{site.currentVendor}</span></td>
                          <td className="px-6 py-4"><div className="w-16 bg-slate-100 h-1.5 rounded-full"><div className="bg-blue-600 h-full" style={{width: `${site.progress || 0}%`}}></div></div></td>
                          <td className="px-6 py-4 text-xs font-semibold">{site.status}</td>
@@ -469,7 +471,7 @@ const App: React.FC = () => {
                <div className="space-y-4">
                  {sites.filter(s => s.status !== SiteStatus.COMPLETED).map(site => (
                    <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group">
-                     <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.region}</div></div></div>
+                     <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div></div></div>
                      <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Target Date</div><div className="text-sm font-bold text-slate-700">{site.scheduledDate || 'TBD'}</div></div><button onClick={() => { setSelectedSite(site); setModalMode('view'); }} className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
                    </div>
                  ))}
@@ -484,7 +486,7 @@ const App: React.FC = () => {
                   {sites.filter(s => s.status === SiteStatus.IN_PROGRESS).map(site => (
                     <div key={site.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden relative">
                       {isDBOperation && <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10"><Loader2 className="animate-spin text-blue-600" /></div>}
-                      <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">Active Node</div><h3 className="text-xl font-bold mt-1">{site.name}</h3></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
+                      <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{site.id}</div><h3 className="text-xl font-bold mt-1">{site.name}</h3></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
                       <div className="p-6 space-y-3">
                          {site.tasks?.map(task => (
                            <div key={task.id} onClick={() => handleTaskToggle(site.id, task.id)} className={`p-4 rounded-2xl flex items-center justify-between cursor-pointer border ${task.isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-100'}`}>
@@ -523,14 +525,88 @@ const App: React.FC = () => {
             <div className="w-full max-w-2xl h-full bg-white shadow-2xl animate-in slide-in-from-right duration-500 overflow-y-auto relative z-10 p-10">
               {(isDBOperation || loadingWorkflow) && <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-20"><Loader2 className="animate-spin text-blue-600" size={48} /></div>}
               <div className="flex justify-between items-start mb-10">
-                <div><span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{modalMode.toUpperCase()} NODE</span><h2 className="text-4xl font-black text-slate-900 mt-2">{modalMode === 'view' ? selectedSite.name : <input value={formData.name || ''} onChange={e=>setFormData({...formData, name:e.target.value})} className="border-b focus:border-blue-500 outline-none w-full"/>}</h2></div>
+                <div>
+                  <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
+                    {modalMode === 'create' ? 'REGISTER NEW SITE' : modalMode === 'edit' ? 'MODIFY SITE DATA' : 'SITE PROFILE'}
+                  </span>
+                  <div className="mt-2">
+                    {modalMode === 'view' ? (
+                      <h2 className="text-4xl font-black text-slate-900">{selectedSite.name}</h2>
+                    ) : (
+                      <div className="space-y-4 w-full">
+                        <div className="w-full">
+                          <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Site Name</label>
+                          <input 
+                            placeholder="e.g. Makati Central Hub"
+                            value={formData.name || ''} 
+                            onChange={e=>setFormData({...formData, name:e.target.value})} 
+                            className="text-4xl font-black text-slate-900 border-b-2 border-slate-100 focus:border-blue-500 outline-none w-full bg-transparent pb-2 transition-all"
+                          />
+                        </div>
+                        <div className="w-full">
+                          <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Site ID</label>
+                          <input 
+                            disabled={modalMode === 'edit'}
+                            placeholder="e.g. MNL-101"
+                            value={formData.id || ''} 
+                            onChange={e=>setFormData({...formData, id:e.target.value})} 
+                            className={`text-xl font-bold border-b border-slate-100 focus:border-blue-500 outline-none w-full bg-transparent pb-1 transition-all ${modalMode === 'edit' ? 'text-slate-400 cursor-not-allowed border-none' : 'text-slate-700'}`}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {modalMode === 'view' && <div className="text-sm font-bold text-slate-400 mt-1">{selectedSite.id}</div>}
+                </div>
                 <button onClick={() => setSelectedSite(null)} className="p-3 bg-slate-100 rounded-2xl"><X size={24}/></button>
               </div>
 
               <div className="space-y-12">
                 <div className="grid grid-cols-2 gap-6">
-                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100"><div className="text-[10px] text-slate-400 font-black uppercase mb-2">Vendor</div><div className="font-bold text-lg">{modalMode === 'view' ? selectedSite.currentVendor : <select className="bg-transparent font-bold w-full outline-none" value={formData.currentVendor} onChange={e=>setFormData({...formData, currentVendor: e.target.value as any})}><option value={Vendor.HUAWEI}>Huawei</option><option value={Vendor.NOKIA}>Nokia</option></select>}</div></div>
-                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100"><div className="text-[10px] text-slate-400 font-black uppercase mb-2">Risk</div><div className="font-bold text-lg">{modalMode === 'view' ? selectedSite.riskLevel : <select className="bg-transparent font-bold w-full outline-none" value={formData.riskLevel} onChange={e=>setFormData({...formData, riskLevel: e.target.value as any})}><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>}</div></div>
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                    <div className="text-[10px] text-slate-400 font-black uppercase mb-2">Current Vendor</div>
+                    <div className="font-bold text-lg">
+                      {modalMode === 'view' ? selectedSite.currentVendor : (
+                        <select className="bg-transparent font-bold w-full outline-none" value={formData.currentVendor} onChange={e=>setFormData({...formData, currentVendor: e.target.value as any})}>
+                          <option value={Vendor.HUAWEI}>Huawei</option>
+                          <option value={Vendor.NOKIA}>Nokia</option>
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                    <div className="text-[10px] text-slate-400 font-black uppercase mb-2">Risk Level</div>
+                    <div className="font-bold text-lg">
+                      {modalMode === 'view' ? selectedSite.riskLevel : (
+                        <select className="bg-transparent font-bold w-full outline-none" value={formData.riskLevel} onChange={e=>setFormData({...formData, riskLevel: e.target.value as any})}>
+                          <option value="Low">Low</option>
+                          <option value="Medium">Medium</option>
+                          <option value="High">High</option>
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-6">
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                    <div className="text-[10px] text-slate-400 font-black uppercase mb-2">Region</div>
+                    <div className="font-bold text-lg">
+                      {modalMode === 'view' ? selectedSite.region : (
+                        <input className="bg-transparent font-bold w-full outline-none" value={formData.region || ''} onChange={e=>setFormData({...formData, region: e.target.value})} />
+                      )}
+                    </div>
+                  </div>
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
+                    <div className="text-[10px] text-slate-400 font-black uppercase mb-2">Project Status</div>
+                    <div className="font-bold text-lg">
+                      {modalMode === 'view' ? selectedSite.status : (
+                        <select className="bg-transparent font-bold w-full outline-none" value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value as any})}>
+                          {Object.values(SiteStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {modalMode === 'view' && isAdmin && (
@@ -549,9 +625,9 @@ const App: React.FC = () => {
 
                 <div className="flex gap-4 pb-10">
                    {modalMode === 'view' ? (
-                     <>{isAdmin && <button onClick={() => setModalMode('edit')} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all">Edit metadata</button>}<button onClick={() => alert("Printing...")} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all">Print Ops Sheet</button></>
+                     <>{isAdmin && <button onClick={() => { setFormData(selectedSite); setModalMode('edit'); }} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all">Edit Site Details</button>}<button onClick={() => alert("Printing...")} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all">Print Ops Sheet</button></>
                    ) : (
-                     <><button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all">Commit Sync</button><button onClick={() => setModalMode('view')} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all">Cancel</button></>
+                     <><button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all">Save Changes</button><button onClick={() => setModalMode('view')} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all">Cancel</button></>
                    )}
                 </div>
               </div>
