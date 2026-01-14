@@ -1,15 +1,7 @@
 
-import React, { useEffect, useRef, useState } from 'react';
-import { 
-  select, 
-  geoMercator, 
-  geoPath, 
-  zoom as d3Zoom, 
-  json as d3Json,
-  ZoomBehavior
-} from 'd3';
+import React, { useEffect, useRef } from 'react';
+import L from 'leaflet';
 import { Site, SiteStatus } from '../types.ts';
-import { Loader2, RefreshCw, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 
 interface SiteMapProps {
   sites: Site[];
@@ -17,112 +9,103 @@ interface SiteMapProps {
   mini?: boolean;
 }
 
+const getStatusColor = (status: SiteStatus) => {
+  switch (status) {
+    case SiteStatus.COMPLETED: return "#10b981";
+    case SiteStatus.IN_PROGRESS: return "#3b82f6";
+    case SiteStatus.BLOCKED: return "#ef4444";
+    case SiteStatus.SURVEYED: return "#f59e0b";
+    default: return "#94a3b8";
+  }
+};
+
 const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) => {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
-    if (!svgRef.current) return;
+    if (!mapContainerRef.current) return;
 
-    const containerWidth = svgRef.current.parentElement?.clientWidth || 800;
-    const height = mini ? 250 : 600;
-    
-    const svg = select(svgRef.current);
-    svg.selectAll("*").remove();
+    // Initialize map
+    if (!mapRef.current) {
+      mapRef.current = L.map(mapContainerRef.current, {
+        zoomControl: !mini,
+        attributionControl: !mini,
+        dragging: !mini,
+        scrollWheelZoom: !mini,
+        doubleClickZoom: !mini,
+      }).setView([12.8797, 121.7740], mini ? 5 : 6); // Centered on Philippines
 
-    const g = svg.append("g");
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
+      }).addTo(mapRef.current);
 
-    const projection = geoMercator()
-      .center([122, 13])
-      .scale(mini ? 1200 : 2800)
-      .translate([containerWidth / 2, height / 2]);
-
-    const path = geoPath().projection(projection);
-
-    const zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> = d3Zoom<SVGSVGElement, unknown>()
-      .scaleExtent([1, 15])
-      .on("zoom", (event) => {
-        g.attr("transform", event.transform);
-      });
-
-    if (!mini) {
-      svg.call(zoomBehavior as any);
+      markersRef.current = L.layerGroup().addTo(mapRef.current);
     }
 
-    setLoading(true);
-    setError(false);
+    // Update markers
+    if (markersRef.current && mapRef.current) {
+      markersRef.current.clearLayers();
 
-    d3Json('https://cdn.jsdelivr.net/gh/faeldon/philippines-json-maps@master/2023/geojson/provinces/lowres/philippines-provinces-lowres.json')
-      .then((data: any) => {
-        if (!data) throw new Error("No data received");
-        setLoading(false);
+      sites.forEach(site => {
+        const color = getStatusColor(site.status);
+        const iconSize = mini ? 10 : 14;
         
-        g.append("g")
-          .selectAll("path")
-          .data(data.features)
-          .enter()
-          .append("path")
-          .attr("d", path as any)
-          .attr("fill", "#f1f5f9")
-          .attr("stroke", "#cbd5e1")
-          .attr("stroke-width", 0.5);
+        const icon = L.divIcon({
+          className: 'custom-marker-container',
+          html: `<div style="background-color: ${color}; width: ${iconSize}px; height: ${iconSize}px;" class="custom-marker-dot"></div>`,
+          iconSize: [iconSize, iconSize],
+          iconAnchor: [iconSize / 2, iconSize / 2]
+        });
 
-        const markers = g.append("g")
-          .selectAll("g")
-          .data(sites)
-          .enter()
-          .append("g")
-          .attr("transform", d => {
-            // Updated to use d.lng and d.lat from database schema
-            const coords = projection([d.lng, d.lat]);
-            return coords ? `translate(${coords[0]}, ${coords[1]})` : `translate(0,0)`;
-          })
-          .attr("class", "cursor-pointer")
-          .on("click", (event, d) => {
-            event.stopPropagation();
-            onSiteClick(d);
-          });
-
-        markers.append("circle")
-          .attr("r", mini ? 4 : 8)
-          .attr("fill", d => {
-            switch(d.status) {
-              case SiteStatus.COMPLETED: return "#10b981";
-              case SiteStatus.IN_PROGRESS: return "#3b82f6";
-              case SiteStatus.BLOCKED: return "#ef4444";
-              case SiteStatus.SURVEYED: return "#f59e0b";
-              default: return "#94a3b8";
-            }
-          })
-          .attr("stroke", "#fff")
-          .attr("stroke-width", 2);
+        const marker = L.marker([site.lat, site.lng], { icon })
+          .on('click', () => onSiteClick(site));
 
         if (!mini) {
-          markers.append("text")
-            .attr("x", 12)
-            .attr("y", 4)
-            .text(d => d.id)
-            .attr("class", "text-[10px] font-black fill-slate-500 pointer-events-none uppercase tracking-tighter");
+          marker.bindTooltip(`
+            <div style="padding: 2px 4px;">
+              <div style="font-weight: 900; font-size: 10px; color: #1e293b; text-transform: uppercase;">${site.id}</div>
+              <div style="font-size: 10px; color: #64748b;">${site.name}</div>
+            </div>
+          `, { direction: 'top', offset: [0, -5], opacity: 0.9 });
         }
-      })
-      .catch(err => {
-        console.error("Map Sync Error:", err);
-        setLoading(false);
-        setError(true);
+
+        markersRef.current?.addLayer(marker);
       });
 
+      // Fit bounds if not mini and we have sites
+      if (!mini && sites.length > 0) {
+        const bounds = L.latLngBounds(sites.map(s => [s.lat, s.lng]));
+        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
+      }
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (mapRef.current) {
+        // We don't necessarily want to destroy the map if props change, 
+        // but the useEffect dependency on `sites` and `mini` handles updates.
+      }
+    };
   }, [sites, mini, onSiteClick]);
 
   return (
-    <div className={`relative bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm ${mini ? 'h-[250px]' : 'h-[600px] w-full'}`}>
-      {loading && (
-        <div className="absolute inset-0 z-20 bg-slate-50/50 backdrop-blur-[2px] flex flex-col items-center justify-center">
-          <Loader2 className="animate-spin text-blue-600 mb-2" size={32} />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Map Telemetry Sync...</p>
+    <div 
+      className={`relative bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm ${mini ? 'h-[250px]' : 'h-[600px] w-full'}`}
+      style={{ zIndex: 0 }}
+    >
+      <div 
+        ref={mapContainerRef} 
+        className="w-full h-full bg-slate-50"
+      />
+      {mini && (
+        <div className="absolute top-3 right-3 z-[1000] bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg border border-slate-200 pointer-events-none">
+          <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Preview Mode</p>
         </div>
       )}
-      <svg ref={svgRef} className="w-full h-full bg-slate-50" />
     </div>
   );
 };
