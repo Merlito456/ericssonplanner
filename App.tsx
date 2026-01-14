@@ -10,7 +10,8 @@ import {
   MapPin, Info, Wifi, Cpu, Globe, Terminal, ShieldCheck, Server,
   Database, Trash2, ListFilter, BarChart3, Table as TableIcon, Sparkles,
   ClipboardList, ChevronLeft, CalendarDays, History, User as UserIcon,
-  Navigation, Shield, ArrowRight, Layers, BarChart, ZapOff
+  Navigation, Shield, ArrowRight, Layers, BarChart, ZapOff,
+  Signal, Cpu as Core, Settings, HardDrive, Share2
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, RiskLevel, SiteMilestones, ActivityLog } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
@@ -63,6 +64,79 @@ const FeatureCard: React.FC<{icon: React.ReactNode, title: string, desc: string}
     </div>
     <h4 className="text-xl font-bold text-white mb-3">{title}</h4>
     <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+  </div>
+);
+
+const DeploymentConsole: React.FC = () => (
+  <div className="relative w-full max-w-xl mx-auto">
+    {/* Main Frame */}
+    <div className="bg-[#0a0a0a] border border-white/10 rounded-[3rem] p-6 shadow-2xl relative overflow-hidden group">
+      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-blue-500 to-transparent opacity-50"></div>
+      
+      {/* Console Header */}
+      <div className="flex justify-between items-center mb-8 px-4">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">System Integrated</span>
+        </div>
+        <div className="flex items-center gap-4 text-slate-600">
+          <Wifi size={14}/>
+          <Server size={14}/>
+          <Settings size={14}/>
+        </div>
+      </div>
+
+      {/* Grid of Stats */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-white/5 border border-white/5 p-6 rounded-[2rem] space-y-3 hover:bg-white/10 transition-colors">
+          <Signal className="text-blue-500" size={24}/>
+          <div>
+            <div className="text-2xl font-black text-white">99.8%</div>
+            <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Uptime Velocity</div>
+          </div>
+        </div>
+        <div className="bg-white/5 border border-white/5 p-6 rounded-[2rem] space-y-3 hover:bg-white/10 transition-colors">
+          <Core className="text-emerald-500" size={24}/>
+          <div>
+            <div className="text-2xl font-black text-white">4.2ms</div>
+            <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Nodal Latency</div>
+          </div>
+        </div>
+      </div>
+
+      {/* List Item Mockup */}
+      <div className="space-y-3 mb-6 px-2">
+        {[
+          { id: 'NCR-GLOBE-102', status: 'Swapping', icon: <RefreshCw size={12}/>, color: 'text-blue-500' },
+          { id: 'VIS-GLOBE-045', status: 'Ready', icon: <CheckCircle2 size={12}/>, color: 'text-emerald-500' },
+          { id: 'MIN-GLOBE-882', status: 'Scanning', icon: <Search size={12}/>, color: 'text-amber-500' },
+        ].map((node) => (
+          <div key={node.id} className="bg-white/5 border border-white/5 px-4 py-3 rounded-xl flex items-center justify-between group/item hover:border-white/10 transition-all">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-lg bg-white/5 ${node.color}`}>{node.icon}</div>
+              <span className="text-xs font-bold text-slate-300">{node.id}</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <span className="text-[9px] font-black uppercase text-slate-500">{node.status}</span>
+              <div className="w-1.5 h-1.5 rounded-full bg-slate-700"></div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Engineering Blueprint Background (Stylized) */}
+      <div className="absolute bottom-[-50px] right-[-50px] opacity-10 pointer-events-none group-hover:scale-110 transition-transform duration-1000">
+        <Globe size={300} className="text-blue-500"/>
+      </div>
+
+      <div className="text-center py-4 border-t border-white/5">
+        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.4em]">Ericsson Intelligent Rollout Interface v4.0</p>
+      </div>
+    </div>
+
+    {/* Decorative Elements */}
+    <div className="absolute top-[-20px] right-[-20px] w-12 h-12 bg-blue-600/20 blur-xl rounded-full"></div>
+    <div className="absolute bottom-[-20px] left-[-20px] w-20 h-20 bg-emerald-600/10 blur-2xl rounded-full"></div>
   </div>
 );
 
@@ -124,66 +198,36 @@ const LandingPage: React.FC<{ onAuth: (user: User) => Promise<void> }> = ({ onAu
         </nav>
 
         {/* Hero Section */}
-        <section className="max-w-7xl mx-auto px-8 pt-20 pb-40 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+        <section className="max-w-7xl mx-auto px-8 pt-20 pb-40 grid grid-cols-1 lg:grid-cols-2 gap-24 items-center">
           <div className="space-y-10">
             <div className="inline-flex items-center gap-3 px-4 py-2 bg-blue-600/10 border border-blue-600/20 rounded-full text-blue-500 text-[10px] font-black uppercase tracking-[0.2em]">
-              <Shield size={14}/> Secure Nationwide Rollout
+              <ShieldCheck size={14}/> Secure Nationwide Rollout
             </div>
             <h2 className="text-7xl font-black leading-[1.1] tracking-tighter">
               Legacy to <span className="text-blue-600">Ericsson</span>. 
               Synchronized.
             </h2>
             <p className="text-slate-400 text-lg leading-relaxed max-w-xl">
-              Manage the comprehensive swap of Huawei and Nokia equipment with precision. 
-              Our Nodal Deployment Planner provides real-time field synchronization, 
-              cognitive logistics, and automated milestone tracking for the Globe nationwide project.
+              Transition the network with precision. Manage the comprehensive swap of legacy hardware 
+              to Ericsson-native equipment with real-time field synchronization, 
+              cognitive logistics, and automated milestone tracking.
             </p>
             <div className="flex items-center gap-6">
               <button 
                 onClick={() => document.getElementById('auth-section')?.scrollIntoView({ behavior: 'smooth' })}
-                className="px-8 py-5 bg-blue-600 hover:bg-blue-700 rounded-[2rem] font-black text-sm uppercase tracking-widest flex items-center gap-3 shadow-2xl shadow-blue-600/40 transition-all hover:-translate-y-1 active:scale-95"
+                className="px-10 py-5 bg-blue-600 hover:bg-blue-700 rounded-[2rem] font-black text-sm uppercase tracking-widest flex items-center gap-3 shadow-2xl shadow-blue-600/40 transition-all hover:-translate-y-1 active:scale-95"
               >
                 Establish Session <ArrowRight size={18}/>
               </button>
-              <div className="flex -space-x-4">
-                {[1,2,3,4].map(i => (
-                  <div key={i} className="w-12 h-12 rounded-full border-4 border-[#000814] bg-slate-800 flex items-center justify-center overflow-hidden">
-                    <UserIcon size={20} className="text-slate-500"/>
-                  </div>
-                ))}
-                <div className="w-12 h-12 rounded-full border-4 border-[#000814] bg-blue-600 flex items-center justify-center text-[10px] font-black">
-                  +25
-                </div>
+              <div className="pl-6 border-l border-white/10">
+                <p className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] mb-1">Project Status</p>
+                <p className="text-xs font-bold text-white uppercase tracking-widest">Active Execution Phase</p>
               </div>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Active Operators Online</p>
             </div>
           </div>
 
-          <div className="relative">
-            <div className="absolute inset-0 bg-blue-600/20 blur-[100px] rounded-full animate-pulse"></div>
-            <div className="bg-slate-900/40 backdrop-blur-3xl border border-white/5 p-4 rounded-[3rem] shadow-2xl relative overflow-hidden">
-              <div className="bg-[#0a0a0a] rounded-[2.5rem] p-8 aspect-square flex flex-col items-center justify-center text-center gap-6">
-                <Globe size={120} className="text-blue-600 animate-[spin_20s_linear_infinite] opacity-50"/>
-                <div className="space-y-2">
-                  <div className="text-5xl font-black text-white">4,812</div>
-                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Target Nodes in Registry</div>
-                </div>
-                <div className="grid grid-cols-3 gap-4 w-full">
-                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                      <div className="text-xs font-black text-emerald-500">1,204</div>
-                      <div className="text-[8px] font-bold text-slate-500 uppercase mt-1">Swapped</div>
-                   </div>
-                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                      <div className="text-xs font-black text-blue-500">842</div>
-                      <div className="text-[8px] font-bold text-slate-500 uppercase mt-1">In-Flight</div>
-                   </div>
-                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
-                      <div className="text-xs font-black text-slate-300">2,766</div>
-                      <div className="text-[8px] font-bold text-slate-500 uppercase mt-1">Pending</div>
-                   </div>
-                </div>
-              </div>
-            </div>
+          <div className="relative animate-in fade-in slide-in-from-right-10 duration-1000">
+            <DeploymentConsole />
           </div>
         </section>
 
@@ -241,14 +285,14 @@ const LandingPage: React.FC<{ onAuth: (user: User) => Promise<void> }> = ({ onAu
               </div>
             </div>
             <div className="lg:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-8">
-              <div className="bg-[#050b1a] p-10 rounded-[2.5rem] border border-white/5 space-y-4">
+              <div className="bg-[#050b1a] p-10 rounded-[2.5rem] border border-white/5 space-y-4 hover:border-blue-500/30 transition-all group">
                 <div className="text-blue-500 font-black text-xs uppercase tracking-widest">Security First</div>
                 <h4 className="text-2xl font-bold">Encrypted Local Vault</h4>
                 <p className="text-slate-500 text-sm leading-relaxed">
                   All site telemetry and sensitive network data is stored in an encrypted local database, ensuring 100% privacy and zero external leaks.
                 </p>
               </div>
-              <div className="bg-[#050b1a] p-10 rounded-[2.5rem] border border-white/5 space-y-4">
+              <div className="bg-[#050b1a] p-10 rounded-[2.5rem] border border-white/5 space-y-4 hover:border-emerald-500/30 transition-all group">
                 <div className="text-blue-500 font-black text-xs uppercase tracking-widest">Reliability</div>
                 <h4 className="text-2xl font-bold">Zero-Cloud Dependency</h4>
                 <p className="text-slate-500 text-sm leading-relaxed">
@@ -270,13 +314,20 @@ const LandingPage: React.FC<{ onAuth: (user: User) => Promise<void> }> = ({ onAu
               <p className="text-slate-400 text-lg leading-relaxed">
                 Secure authentication is required to access node dossiers, technical instructions, and nationwide inventory management.
               </p>
-              <div className="p-8 bg-blue-600 rounded-[2.5rem] space-y-4">
+              <div className="p-10 bg-blue-600 rounded-[2.5rem] space-y-6">
                 <h4 className="text-xl font-bold flex items-center gap-3"><Terminal size={24}/> Operator Protocol</h4>
-                <ul className="space-y-3 text-blue-100 text-sm opacity-90">
-                   <li>• Ensure secure terminal connection</li>
-                   <li>• Use Ericsson-Globe authorized credentials</li>
-                   <li>• Local session data will be synchronized on login</li>
-                </ul>
+                <div className="space-y-4">
+                  {[
+                    { label: 'Connectivity', value: 'Authorized Terminal Only' },
+                    { label: 'Security', value: 'Encrypted Session Storage' },
+                    { label: 'Compliance', value: 'Ericsson-Globe Audit Active' },
+                  ].map((p) => (
+                    <div key={p.label} className="flex justify-between items-center border-b border-white/10 pb-3">
+                      <span className="text-[10px] font-black uppercase text-blue-200">{p.label}</span>
+                      <span className="text-xs font-bold text-white">{p.value}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -1106,7 +1157,7 @@ const App: React.FC = () => {
           {activeTab === 'ai' && isAdmin && (
             <div className="animate-in slide-in-from-right-4 duration-500">
                <div className="mb-8 flex items-center justify-between">
-                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><Cpu className="text-blue-600" size={28} /> Strategy Core</h2><p className="text-slate-500 text-sm mt-1">Advanced offline analysis of nodal telemetry</p></div>
+                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><Cpu size={28} className="text-blue-600" /> Strategy Core</h2><p className="text-slate-500 text-sm mt-1">Advanced offline analysis of nodal telemetry</p></div>
                   <button onClick={handleRunAiAnalysis} disabled={loadingAi} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} Synthesize Data</button>
                </div>
                {loadingAi && (
