@@ -1,60 +1,99 @@
 
-import React, { useEffect, useRef } from 'react';
-import * as d3 from 'd3';
+import React, { useEffect, useRef, useState } from 'react';
+// Import specific D3 modules to fix type resolution issues in strict environments
+import { 
+  select, 
+  geoMercator, 
+  geoPath, 
+  zoom as d3Zoom, 
+  json as d3Json,
+  ZoomBehavior
+} from 'd3';
 import { Site, SiteStatus } from '../types.ts';
+import { Loader2, RefreshCw, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
 
 interface SiteMapProps {
   sites: Site[];
   onSiteClick: (site: Site) => void;
+  mini?: boolean;
 }
 
-const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick }) => {
+const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!svgRef.current) return;
 
     const width = svgRef.current.clientWidth;
-    const height = 500;
-    const svg = d3.select(svgRef.current);
+    const height = mini ? 250 : 600;
+    
+    // Fix: Use named import 'select' instead of property access on d3 namespace
+    const svg = select(svgRef.current);
     svg.selectAll("*").remove();
 
-    // Projection focused on Philippines
-    const projection = d3.geoMercator()
-      .center([121.7740, 12.8797])
-      .scale(2500)
+    const g = svg.append("g");
+
+    // Fix: Use named import 'geoMercator' instead of property access on d3 namespace
+    const projection = geoMercator()
+      .center([122, 13]) // Centered around the archipelago
+      .scale(mini ? 1200 : 2800)
       .translate([width / 2, height / 2]);
 
-    const path = d3.geoPath().projection(projection);
+    // Fix: Use named import 'geoPath' instead of property access on d3 namespace
+    const path = geoPath().projection(projection);
 
-    // Using a more reliable GeoJSON source for Philippines to avoid 404s
-    d3.json('https://raw.githubusercontent.com/macapagaljs/philippines-geojson/master/philippines.json')
+    // Fix: Use named import 'zoom' (aliased as d3Zoom) instead of property access on d3 namespace
+    const zoomBehavior: ZoomBehavior<SVGSVGElement, unknown> = d3Zoom<SVGSVGElement, unknown>()
+      .scaleExtent([1, 15])
+      .on("zoom", (event) => {
+        g.attr("transform", event.transform);
+      });
+
+    if (!mini) {
+      svg.call(zoomBehavior as any);
+    }
+
+    setLoading(true);
+    setError(false);
+
+    // Fix: Use named import 'json' (aliased as d3Json) instead of property access on d3 namespace
+    d3Json('https://raw.githubusercontent.com/faeldon/philippines-json-maps/master/2023/geojson/provinces/lowres/philippines-provinces-lowres.json')
       .then((data: any) => {
-        svg.append("g")
+        setLoading(false);
+        
+        // Land mass
+        g.append("g")
           .selectAll("path")
           .data(data.features)
           .enter()
           .append("path")
-          .attr("d", path)
-          .attr("fill", "#e2e8f0")
-          .attr("stroke", "#94a3b8")
-          .attr("stroke-width", 0.5);
+          .attr("d", path as any)
+          .attr("fill", "#f1f5f9")
+          .attr("stroke", "#cbd5e1")
+          .attr("stroke-width", 0.5)
+          .attr("class", "transition-colors duration-300 hover:fill-slate-200");
 
-        // Plot sites
-        const siteMarkers = svg.append("g")
-          .selectAll("circle")
+        // Site markers
+        const markers = g.append("g")
+          .selectAll("g")
           .data(sites)
           .enter()
-          .append("circle")
-          .attr("cx", d => {
+          .append("g")
+          .attr("transform", d => {
             const coords = projection([d.coordinates.lng, d.coordinates.lat]);
-            return coords ? coords[0] : 0;
+            return coords ? `translate(${coords[0]}, ${coords[1]})` : `translate(0,0)`;
           })
-          .attr("cy", d => {
-            const coords = projection([d.coordinates.lng, d.coordinates.lat]);
-            return coords ? coords[1] : 0;
-          })
-          .attr("r", 8)
+          .attr("class", "cursor-pointer")
+          .on("click", (event, d) => {
+            event.stopPropagation();
+            onSiteClick(d);
+          });
+
+        // Glowing effect for markers
+        markers.append("circle")
+          .attr("r", mini ? 4 : 8)
           .attr("fill", d => {
             switch(d.status) {
               case SiteStatus.COMPLETED: return "#10b981";
@@ -66,50 +105,72 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick }) => {
           })
           .attr("stroke", "#fff")
           .attr("stroke-width", 2)
-          .attr("class", "cursor-pointer hover:scale-125 transition-transform")
-          .on("click", (event, d) => onSiteClick(d));
-        
-        // Add labels for some sites
-        svg.append("g")
-          .selectAll("text")
-          .data(sites)
-          .enter()
-          .append("text")
-          .attr("x", d => {
-            const coords = projection([d.coordinates.lng, d.coordinates.lat]);
-            return coords ? coords[0] + 10 : 0;
-          })
-          .attr("y", d => {
-            const coords = projection([d.coordinates.lng, d.coordinates.lat]);
-            return coords ? coords[1] + 4 : 0;
-          })
-          .text(d => d.id)
-          .attr("font-size", "10px")
-          .attr("class", "pointer-events-none fill-slate-500 font-medium");
+          .attr("class", "transition-transform duration-300 hover:scale-150 shadow-xl");
+
+        if (!mini) {
+          markers.append("text")
+            .attr("x", 12)
+            .attr("y", 4)
+            .text(d => d.id)
+            .attr("class", "text-[10px] font-black fill-slate-500 pointer-events-none uppercase tracking-tighter");
+        }
       })
-      .catch(error => {
-        console.error("Map Load Error", error);
-        // Fallback or error state UI
-        svg.append("text")
-          .attr("x", width / 2)
-          .attr("y", height / 2)
-          .attr("text-anchor", "middle")
-          .text("Failed to load map data. Please check connectivity.");
+      .catch(err => {
+        console.error("Map Data Fetch Error:", err);
+        setLoading(false);
+        setError(true);
       });
 
-  }, [sites, onSiteClick]);
+  }, [sites, mini, onSiteClick]);
 
   return (
-    <div className="w-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <div className="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-        <h3 className="font-semibold text-slate-800">Deployment Geospatial View</h3>
-        <div className="flex gap-4 text-xs font-medium text-slate-500">
-          <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> In Progress</div>
-          <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500"></span> Completed</div>
-          <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-500"></span> Blocked</div>
+    <div className={`relative bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm ${mini ? 'h-[250px]' : 'w-full'}`}>
+      {!mini && (
+        <div className="absolute top-6 left-6 z-10 space-y-2">
+          <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-xl">
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-3">Live Deployment Map</h3>
+            <div className="space-y-2">
+              {[
+                { label: 'Completed', color: 'bg-emerald-500' },
+                { label: 'In Progress', color: 'bg-blue-500' },
+                { label: 'Blocked', color: 'bg-red-500' },
+                { label: 'Planned/Pending', color: 'bg-slate-400' }
+              ].map(item => (
+                <div key={item.label} className="flex items-center gap-2">
+                  <span className={`w-2.5 h-2.5 rounded-full ${item.color} border border-white`}></span>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase">{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
-      </div>
-      <svg ref={svgRef} className="w-full h-[500px]" />
+      )}
+
+      {loading && (
+        <div className="absolute inset-0 z-20 bg-slate-50/50 backdrop-blur-[2px] flex flex-col items-center justify-center">
+          <Loader2 className="animate-spin text-blue-600 mb-2" size={32} />
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Synchronizing Clusters...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="absolute inset-0 z-20 bg-red-50/50 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center">
+          <RefreshCw className="text-red-400 mb-4" size={48} />
+          <h3 className="text-lg font-bold text-slate-900 mb-2">Network Sync Interrupted</h3>
+          <p className="text-sm text-slate-500 max-w-xs mb-6">Unable to retrieve nationwide geospatial telemetry. Please verify your connection to the Ericsson backend.</p>
+          <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-red-500/20">Retry Handshake</button>
+        </div>
+      )}
+
+      {!mini && (
+        <div className="absolute top-6 right-6 z-10 flex flex-col gap-2">
+          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors"><ZoomIn size={18}/></button>
+          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors"><ZoomOut size={18}/></button>
+          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors"><Maximize2 size={18}/></button>
+        </div>
+      )}
+
+      <svg ref={svgRef} className={`w-full h-full bg-slate-50 ${mini ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`} />
     </div>
   );
 };
