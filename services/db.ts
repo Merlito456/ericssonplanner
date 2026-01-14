@@ -7,6 +7,15 @@ const TASKS_KEY = 'pg_tasks_v1';
 const USERS_KEY = 'pg_users_v1';
 const SESSION_KEY = 'pg_session_v1';
 
+const DEFAULT_MILESTONES: SiteMilestones = {
+  survey: { plan: '', actual: '' },
+  survey_report: { plan: '', actual: '' },
+  installation: { plan: '', actual: '' },
+  integration: { plan: '', actual: '' },
+  completion_report: { plan: '', actual: '' },
+  site_close: { plan: '', actual: '' },
+};
+
 export class DatabaseService {
   private async delay(ms: number = 300) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -24,6 +33,8 @@ export class DatabaseService {
 
     return sites.map(s => ({
       ...s,
+      // CRITICAL: Ensure milestones exist even for legacy records to prevent crashes
+      milestones: s.milestones || { ...DEFAULT_MILESTONES },
       equipment: equipment.filter(e => e.site_id === s.id),
       tasks: tasks.filter(t => t.site_id === s.id)
     }));
