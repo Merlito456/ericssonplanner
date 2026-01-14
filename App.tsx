@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip
@@ -9,7 +10,7 @@ import {
   MapPin, Info, Wifi, Cpu, Globe, Terminal, ShieldCheck, Server,
   Database, Trash2, ListFilter, BarChart3, Table as TableIcon, Sparkles,
   ClipboardList, ChevronLeft, CalendarDays, History, User as UserIcon,
-  Navigation
+  Navigation, Shield, ArrowRight, Layers, BarChart, ZapOff
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, RiskLevel, SiteMilestones, ActivityLog } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
@@ -17,7 +18,6 @@ import { strategyEngine } from './services/strategyEngine.ts';
 import { dbService } from './services/db.ts';
 
 const COLORS = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#94a3b8'];
-
 const REGIONS = ['NCR', 'Luzon', 'Visayas', 'Mindanao'];
 
 const DEFAULT_MILESTONES: SiteMilestones = {
@@ -56,7 +56,17 @@ const StatusCard: React.FC<{icon: React.ReactNode, label: string, value: string,
   </div>
 );
 
-const AuthPage: React.FC<{ onAuth: (user: User) => Promise<void> }> = ({ onAuth }) => {
+const FeatureCard: React.FC<{icon: React.ReactNode, title: string, desc: string}> = ({icon, title, desc}) => (
+  <div className="bg-white/10 backdrop-blur-md border border-white/10 p-8 rounded-[2rem] hover:bg-white/20 transition-all group">
+    <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center mb-6 text-white shadow-lg shadow-blue-600/30 group-hover:scale-110 transition-transform">
+      {icon}
+    </div>
+    <h4 className="text-xl font-bold text-white mb-3">{title}</h4>
+    <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+  </div>
+);
+
+const LandingPage: React.FC<{ onAuth: (user: User) => Promise<void> }> = ({ onAuth }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -84,72 +94,275 @@ const AuthPage: React.FC<{ onAuth: (user: User) => Promise<void> }> = ({ onAuth 
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 font-['Inter']">
-      <div className="w-full max-w-md bg-white rounded-[2.5rem] p-10 shadow-2xl">
-        <div className="flex justify-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-white text-3xl shadow-xl shadow-blue-600/20">E</div>
-        </div>
-        <div className="text-center mb-10">
-          <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">Ericsson-Globe</h1>
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mt-1">Nodal Deployment Planner</p>
-        </div>
+    <div className="min-h-screen bg-[#000814] text-white selection:bg-blue-600 selection:text-white font-['Inter'] overflow-x-hidden">
+      {/* Background Elements */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-blue-900/20 blur-[120px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 blur-[120px] rounded-full"></div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {!isLogin && (
-            <div className="space-y-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Name</label>
-              <input 
-                type="text" 
-                required 
-                className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:border-blue-500 transition-all outline-none" 
-                placeholder="John Doe"
-                value={name}
-                onChange={e => setName(e.target.value)}
-              />
+      <div className="relative z-10">
+        {/* Navigation Header */}
+        <nav className="max-w-7xl mx-auto px-8 py-10 flex justify-between items-center">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-600 rounded-2xl flex items-center justify-center font-black text-white text-2xl shadow-xl shadow-blue-600/20">E</div>
+            <div>
+              <h1 className="text-xl font-black uppercase tracking-tight">Ericsson-Globe</h1>
+              <p className="text-[10px] font-black text-blue-500 uppercase tracking-[0.3em]">Project Planner Core</p>
             </div>
-          )}
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
-            <input 
-              type="email" 
-              required 
-              className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:border-blue-500 transition-all outline-none" 
-              placeholder="admin@ericsson.com"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
+          </div>
+          <div className="flex items-center gap-8">
+            <a href="#features" className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors">Features</a>
+            <a href="#advantages" className="text-xs font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors">Advantages</a>
+            <button 
+              onClick={() => document.getElementById('auth-section')?.scrollIntoView({ behavior: 'smooth' })}
+              className="px-6 py-3 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-xs font-black uppercase tracking-widest transition-all"
+            >
+              Access Portal
+            </button>
+          </div>
+        </nav>
+
+        {/* Hero Section */}
+        <section className="max-w-7xl mx-auto px-8 pt-20 pb-40 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+          <div className="space-y-10">
+            <div className="inline-flex items-center gap-3 px-4 py-2 bg-blue-600/10 border border-blue-600/20 rounded-full text-blue-500 text-[10px] font-black uppercase tracking-[0.2em]">
+              <Shield size={14}/> Secure Nationwide Rollout
+            </div>
+            <h2 className="text-7xl font-black leading-[1.1] tracking-tighter">
+              Legacy to <span className="text-blue-600">Ericsson</span>. 
+              Synchronized.
+            </h2>
+            <p className="text-slate-400 text-lg leading-relaxed max-w-xl">
+              Manage the comprehensive swap of Huawei and Nokia equipment with precision. 
+              Our Nodal Deployment Planner provides real-time field synchronization, 
+              cognitive logistics, and automated milestone tracking for the Globe nationwide project.
+            </p>
+            <div className="flex items-center gap-6">
+              <button 
+                onClick={() => document.getElementById('auth-section')?.scrollIntoView({ behavior: 'smooth' })}
+                className="px-8 py-5 bg-blue-600 hover:bg-blue-700 rounded-[2rem] font-black text-sm uppercase tracking-widest flex items-center gap-3 shadow-2xl shadow-blue-600/40 transition-all hover:-translate-y-1 active:scale-95"
+              >
+                Establish Session <ArrowRight size={18}/>
+              </button>
+              <div className="flex -space-x-4">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="w-12 h-12 rounded-full border-4 border-[#000814] bg-slate-800 flex items-center justify-center overflow-hidden">
+                    <UserIcon size={20} className="text-slate-500"/>
+                  </div>
+                ))}
+                <div className="w-12 h-12 rounded-full border-4 border-[#000814] bg-blue-600 flex items-center justify-center text-[10px] font-black">
+                  +25
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Active Operators Online</p>
+            </div>
+          </div>
+
+          <div className="relative">
+            <div className="absolute inset-0 bg-blue-600/20 blur-[100px] rounded-full animate-pulse"></div>
+            <div className="bg-slate-900/40 backdrop-blur-3xl border border-white/5 p-4 rounded-[3rem] shadow-2xl relative overflow-hidden">
+              <div className="bg-[#0a0a0a] rounded-[2.5rem] p-8 aspect-square flex flex-col items-center justify-center text-center gap-6">
+                <Globe size={120} className="text-blue-600 animate-[spin_20s_linear_infinite] opacity-50"/>
+                <div className="space-y-2">
+                  <div className="text-5xl font-black text-white">4,812</div>
+                  <div className="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em]">Target Nodes in Registry</div>
+                </div>
+                <div className="grid grid-cols-3 gap-4 w-full">
+                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <div className="text-xs font-black text-emerald-500">1,204</div>
+                      <div className="text-[8px] font-bold text-slate-500 uppercase mt-1">Swapped</div>
+                   </div>
+                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <div className="text-xs font-black text-blue-500">842</div>
+                      <div className="text-[8px] font-bold text-slate-500 uppercase mt-1">In-Flight</div>
+                   </div>
+                   <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+                      <div className="text-xs font-black text-slate-300">2,766</div>
+                      <div className="text-[8px] font-bold text-slate-500 uppercase mt-1">Pending</div>
+                   </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Grid */}
+        <section id="features" className="max-w-7xl mx-auto px-8 py-40">
+          <div className="text-center mb-24 space-y-4">
+            <h3 className="text-4xl font-black tracking-tight">System Core Capabilities</h3>
+            <p className="text-slate-500 uppercase font-black text-xs tracking-[0.3em]">Precision Engineering for Massive Rollouts</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <FeatureCard 
+              icon={<Cpu size={24}/>} 
+              title="Cognitive Logic" 
+              desc="Local strategy engine calculates regional risk density and supply chain buffers automatically."
+            />
+            <FeatureCard 
+              icon={<Layers size={24}/>} 
+              title="Batch Planning" 
+              desc="Schedule dozens of node swaps simultaneously with intelligent resource allocation."
+            />
+            <FeatureCard 
+              icon={<Navigation size={24}/>} 
+              title="Field Sync" 
+              desc="Real-time MOP execution tracking from site survey to final acceptance sign-off."
+            />
+            <FeatureCard 
+              icon={<BarChart size={24}/>} 
+              title="Health Audits" 
+              desc="Continuous nationwide project health monitoring with predictive blocked status alerts."
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Secure Password</label>
-            <input 
-              type="password" 
-              required 
-              className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:border-blue-500 transition-all outline-none" 
-              placeholder="••••••••"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-            />
+        </section>
+
+        {/* Advantages Section */}
+        <section id="advantages" className="bg-blue-600/5 border-y border-white/5 py-40">
+          <div className="max-w-7xl mx-auto px-8 flex flex-col lg:flex-row gap-20">
+            <div className="lg:w-1/3 space-y-8">
+              <h3 className="text-5xl font-black tracking-tighter">Strategic Advantages</h3>
+              <p className="text-slate-400 leading-relaxed">
+                Engineered specifically for the Globe Telecom environment, our platform ensures zero logistical leakage and absolute data integrity.
+              </p>
+              <div className="space-y-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500"><CheckCircle size={20}/></div>
+                  <span className="font-bold text-sm">Reduced integration time by 40%</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500"><CheckCircle size={20}/></div>
+                  <span className="font-bold text-sm">Automated regulatory reporting</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-slate-500/10 flex items-center justify-center text-slate-500"><CheckCircle size={20}/></div>
+                  <span className="font-bold text-sm">100% Offline-capable data vault</span>
+                </div>
+              </div>
+            </div>
+            <div className="lg:w-2/3 grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <div className="bg-[#050b1a] p-10 rounded-[2.5rem] border border-white/5 space-y-4">
+                <div className="text-blue-500 font-black text-xs uppercase tracking-widest">Security First</div>
+                <h4 className="text-2xl font-bold">Encrypted Local Vault</h4>
+                <p className="text-slate-500 text-sm leading-relaxed">
+                  All site telemetry and sensitive network data is stored in an encrypted local database, ensuring 100% privacy and zero external leaks.
+                </p>
+              </div>
+              <div className="bg-[#050b1a] p-10 rounded-[2.5rem] border border-white/5 space-y-4">
+                <div className="text-blue-500 font-black text-xs uppercase tracking-widest">Reliability</div>
+                <h4 className="text-2xl font-bold">Zero-Cloud Dependency</h4>
+                <p className="text-slate-500 text-sm leading-relaxed">
+                  The strategy engine runs entirely on the client, meaning deployment can continue even in remote regions with no internet connectivity.
+                </p>
+                <div className="pt-4 flex items-center gap-2 text-[10px] font-black text-emerald-500 uppercase">
+                   <ZapOff size={14}/> Verified Offline Core
+                </div>
+              </div>
+            </div>
           </div>
+        </section>
 
-          {error && <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-[10px] font-bold uppercase text-center">{error}</div>}
+        {/* Authentication Portal Section */}
+        <section id="auth-section" className="max-w-7xl mx-auto px-8 py-40">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <div className="space-y-10">
+              <h3 className="text-6xl font-black tracking-tighter">Access the Rollout Portal</h3>
+              <p className="text-slate-400 text-lg leading-relaxed">
+                Secure authentication is required to access node dossiers, technical instructions, and nationwide inventory management.
+              </p>
+              <div className="p-8 bg-blue-600 rounded-[2.5rem] space-y-4">
+                <h4 className="text-xl font-bold flex items-center gap-3"><Terminal size={24}/> Operator Protocol</h4>
+                <ul className="space-y-3 text-blue-100 text-sm opacity-90">
+                   <li>• Ensure secure terminal connection</li>
+                   <li>• Use Ericsson-Globe authorized credentials</li>
+                   <li>• Local session data will be synchronized on login</li>
+                </ul>
+              </div>
+            </div>
 
-          <button 
-            type="submit" 
-            disabled={loading}
-            className="w-full bg-blue-600 text-white py-5 rounded-[1.5rem] font-black shadow-xl shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0"
-          >
-            {loading ? <Loader2 className="animate-spin mx-auto" size={20}/> : (isLogin ? 'Establish Session' : 'Register Credential')}
-          </button>
-        </form>
+            <div className="bg-white rounded-[3rem] p-12 text-slate-900 shadow-2xl relative">
+              <div className="absolute top-8 right-12">
+                <div className={`px-4 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${isLogin ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>
+                   {isLogin ? 'Production Access' : 'Node Registration'}
+                </div>
+              </div>
 
-        <div className="mt-8 text-center">
-          <button 
-            onClick={() => setIsLogin(!isLogin)}
-            className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 transition-colors"
-          >
-            {isLogin ? "Need a new operator account?" : "Already have credentials? Log In"}
-          </button>
-        </div>
+              <div className="mb-10">
+                <h4 className="text-3xl font-black tracking-tight">{isLogin ? 'System Login' : 'Create Operator'}</h4>
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-2">Nodal deployment session</p>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {!isLogin && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Operator Name</label>
+                    <input 
+                      type="text" 
+                      required 
+                      className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:border-blue-500 transition-all outline-none" 
+                      placeholder="John Doe"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                    />
+                  </div>
+                )}
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Email Address</label>
+                  <input 
+                    type="email" 
+                    required 
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:border-blue-500 transition-all outline-none" 
+                    placeholder="admin@ericsson.com"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Secure Password</label>
+                  <input 
+                    type="password" 
+                    required 
+                    className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold focus:bg-white focus:border-blue-500 transition-all outline-none" 
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                  />
+                </div>
+
+                {error && <div className="p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-[10px] font-bold uppercase text-center">{error}</div>}
+
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="w-full bg-blue-600 text-white py-5 rounded-[2rem] font-black shadow-xl shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-0.5 transition-all active:scale-95 disabled:opacity-50 disabled:translate-y-0 uppercase tracking-widest"
+                >
+                  {loading ? <Loader2 className="animate-spin mx-auto" size={20}/> : (isLogin ? 'Establish Session' : 'Register Operator')}
+                </button>
+              </form>
+
+              <div className="mt-8 text-center">
+                <button 
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 transition-colors"
+                >
+                  {isLogin ? "Need new operator credentials?" : "Existing operator? Return to Login"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <footer className="max-w-7xl mx-auto px-8 py-20 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-10">
+          <div className="flex items-center gap-4">
+            <div className="w-8 h-8 bg-slate-800 rounded-lg flex items-center justify-center font-black text-white text-sm">E</div>
+            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Ericsson-Globe Nodal Deployment Planner © 2024</p>
+          </div>
+          <div className="flex items-center gap-8 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+            <a href="#" className="hover:text-white transition-colors">Project Wiki</a>
+            <a href="#" className="hover:text-white transition-colors">Field Safety MOP</a>
+            <a href="#" className="hover:text-white transition-colors">Internal Ops Only</a>
+          </div>
+        </footer>
       </div>
     </div>
   );
@@ -512,7 +725,6 @@ const App: React.FC = () => {
         region: formData.region || 'NCR',
         lat: Number(formData.lat) || 14.59,
         lng: Number(formData.lng) || 120.98,
-        // Fix: Explicitly cast to the permitted union type for current_vendor to resolve Type 'Vendor' mismatch (Line 728 approx)
         current_vendor: (formData.current_vendor || Vendor.HUAWEI) as Vendor.HUAWEI | Vendor.NOKIA,
         risk_level: formData.risk_level || RiskLevel.Low,
         progress: formData.progress || 0,
@@ -654,7 +866,7 @@ const App: React.FC = () => {
     }
   };
 
-  if (!currentUser) return <AuthPage onAuth={async u => { 
+  if (!currentUser) return <LandingPage onAuth={async u => { 
     setCurrentUser(u); 
     await dbService.addLog({
       user_id: u.id,
@@ -965,7 +1177,6 @@ const App: React.FC = () => {
                     </div>
                     <div className="space-y-1">
                       <label className="text-[10px] font-black uppercase text-slate-400">Current Vendor</label>
-                      {/* Fix: Specifically cast to Vendor.HUAWEI | Vendor.NOKIA to satisfy Site interface requirements and avoid Type 'Vendor' mismatch (Line 1094 approx) */}
                       <select value={formData.current_vendor || Vendor.HUAWEI} onChange={e=>setFormData({...formData, current_vendor: e.target.value as Vendor.HUAWEI | Vendor.NOKIA})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold appearance-none">
                         <option value={Vendor.HUAWEI}>{Vendor.HUAWEI}</option>
                         <option value={Vendor.NOKIA}>{Vendor.NOKIA}</option>
