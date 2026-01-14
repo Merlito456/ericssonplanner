@@ -2,6 +2,7 @@
 import { Site, SiteStatus, Vendor, RiskLevel } from './types.ts';
 
 // Fix: Updated mock data property names to match snake_case interface definitions and flattened coordinates
+// Fix: Added required 'milestones' property to all mock sites to resolve property missing errors
 export const MOCK_SITES: Site[] = [
   {
     id: 'MNL-GLOBE-001',
@@ -15,6 +16,15 @@ export const MOCK_SITES: Site[] = [
     last_update: '2024-05-20',
     risk_level: RiskLevel.Low,
     progress: 35,
+    // Fix: Added milestones property to satisfy Site interface
+    milestones: {
+      survey: { plan: '2024-05-01', actual: '2024-05-02' },
+      survey_report: { plan: '2024-05-05', actual: '2024-05-07' },
+      installation: { plan: '2024-05-15', actual: '' },
+      integration: { plan: '2024-05-20', actual: '' },
+      completion_report: { plan: '2024-05-25', actual: '' },
+      site_close: { plan: '2024-05-30', actual: '' },
+    },
     equipment: [
       { id: 'EQ-101', site_id: 'MNL-GLOBE-001', type: 'BBU', vendor: Vendor.HUAWEI, model: 'BBU3900', serial_number: 'SN-HA-9921' },
       { id: 'EQ-102', site_id: 'MNL-GLOBE-001', type: 'Radio', vendor: Vendor.HUAWEI, model: 'MRFU', serial_number: 'SN-HA-1102' }
@@ -40,6 +50,15 @@ export const MOCK_SITES: Site[] = [
     last_update: '2024-05-18',
     risk_level: RiskLevel.Medium,
     progress: 0,
+    // Fix: Added milestones property to satisfy Site interface
+    milestones: {
+      survey: { plan: '2024-06-01', actual: '' },
+      survey_report: { plan: '2024-06-05', actual: '' },
+      installation: { plan: '2024-06-15', actual: '' },
+      integration: { plan: '2024-06-20', actual: '' },
+      completion_report: { plan: '2024-06-25', actual: '' },
+      site_close: { plan: '2024-06-30', actual: '' },
+    },
     equipment: [
       { id: 'EQ-201', site_id: 'CEB-GLOBE-042', type: 'BBU', vendor: Vendor.NOKIA, model: 'AirScale', serial_number: 'SN-NK-8812' }
     ]
@@ -56,6 +75,15 @@ export const MOCK_SITES: Site[] = [
     last_update: '2024-05-15',
     risk_level: RiskLevel.Low,
     progress: 100,
+    // Fix: Added milestones property to satisfy Site interface
+    milestones: {
+      survey: { plan: '2024-04-01', actual: '2024-04-02' },
+      survey_report: { plan: '2024-04-05', actual: '2024-04-06' },
+      installation: { plan: '2024-04-15', actual: '2024-04-16' },
+      integration: { plan: '2024-04-20', actual: '2024-04-21' },
+      completion_report: { plan: '2024-04-25', actual: '2024-04-26' },
+      site_close: { plan: '2024-04-30', actual: '2024-04-30' },
+    },
     equipment: [
       { id: 'EQ-301', site_id: 'DAV-GLOBE-099', type: 'BBU', vendor: Vendor.ERICSSON, model: 'BB6630', serial_number: 'SN-ER-4412' }
     ],
@@ -80,6 +108,15 @@ export const MOCK_SITES: Site[] = [
     last_update: '2024-05-21',
     risk_level: RiskLevel.High,
     progress: 15,
+    // Fix: Added milestones property to satisfy Site interface
+    milestones: {
+      survey: { plan: '2024-05-10', actual: '2024-05-12' },
+      survey_report: { plan: '2024-05-15', actual: '' },
+      installation: { plan: '2024-05-25', actual: '' },
+      integration: { plan: '2024-06-01', actual: '' },
+      completion_report: { plan: '2024-06-05', actual: '' },
+      site_close: { plan: '2024-06-10', actual: '' },
+    },
     equipment: [
       { id: 'EQ-501', site_id: 'MNL-GLOBE-005', type: 'BBU', vendor: Vendor.HUAWEI, model: 'BBU3910', serial_number: 'SN-HA-0012' }
     ]
