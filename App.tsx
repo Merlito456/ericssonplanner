@@ -8,7 +8,7 @@ import {
   CheckCircle2, ChevronRight, Search, X, Calendar, PlayCircle, Clock, 
   Zap, Loader2, CheckCircle, Plus, RefreshCw, LogOut, 
   MapPin, Info, Wifi, Cpu, Globe, Terminal, ShieldCheck, Server,
-  Database
+  Database, Trash2
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, RiskLevel } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
@@ -196,6 +196,25 @@ const App: React.FC = () => {
       alert("Critical: Sync operation aborted."); 
     } finally { 
       setIsDBOperation(false); 
+    }
+  };
+
+  const handleDeleteSite = async (id: string) => {
+    if (!isAdmin || isDBOperation) return;
+    if (!window.confirm("CRITICAL ACTION: Are you sure you want to decommission this node? All associated field telemetry and task histories will be permanently purged.")) return;
+    
+    setIsDBOperation(true);
+    try {
+      await dbService.deleteSite(id);
+      const updatedData = await dbService.getSites();
+      setSites(Array.isArray(updatedData) ? updatedData : []);
+      setSelectedSite(null);
+      setFormData({});
+    } catch (e) {
+      console.error(e);
+      alert("Decommissioning failed: Database error.");
+    } finally {
+      setIsDBOperation(false);
     }
   };
 
@@ -413,7 +432,7 @@ const App: React.FC = () => {
                <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden">
                  <table className="w-full text-left">
                    <thead className="bg-slate-50 border-b border-slate-200">
-                     <tr><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">GPS Coordinates</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th></tr>
+                     <tr><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">GPS Coordinates</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th></tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                      {(filteredSites || []).map(s => (
@@ -423,6 +442,17 @@ const App: React.FC = () => {
                          <td className="px-6 py-4 text-xs font-bold text-blue-600">{s.current_vendor}</td>
                          <td className="px-6 py-4 text-[10px] font-mono text-slate-400">{(s.lat || 0).toFixed(4)}, {(s.lng || 0).toFixed(4)}</td>
                          <td className="px-6 py-4"><span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase border ${s.status === SiteStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{s.status}</span></td>
+                         <td className="px-6 py-4 text-right">
+                           {isAdmin && (
+                             <button 
+                               onClick={(e) => { e.stopPropagation(); handleDeleteSite(s.id); }}
+                               className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                               title="Decommission Site"
+                             >
+                               <Trash2 size={16} />
+                             </button>
+                           )}
+                         </td>
                        </tr>
                      ))}
                    </tbody>
@@ -656,7 +686,16 @@ const App: React.FC = () => {
                     {isDBOperation && <Loader2 className="animate-spin" size={20} />}
                     Commit to Database
                   </button>
-                  <button onClick={() => { setSelectedSite(null); setFormData({}); }} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-black hover:bg-slate-50 transition-colors text-slate-600">
+                  {modalMode !== 'create' && isAdmin && (
+                    <button 
+                      disabled={isDBOperation}
+                      onClick={() => handleDeleteSite(formData.id!)}
+                      className="px-6 bg-white border border-red-200 text-red-600 rounded-2xl font-black hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={18}/>
+                    </button>
+                  )}
+                  <button onClick={() => { setSelectedSite(null); setFormData({}); }} className="px-6 bg-white border border-slate-200 py-4 rounded-2xl font-black hover:bg-slate-50 transition-colors text-slate-600">
                     Cancel
                   </button>
                 </div>
