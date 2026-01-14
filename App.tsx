@@ -15,7 +15,6 @@ import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, Ri
 import SiteMap from './components/SiteMap.tsx';
 import { strategyEngine } from './services/strategyEngine.ts';
 import { dbService } from './services/db.ts';
-import { geminiService } from './services/gemini.ts';
 
 const COLORS = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#94a3b8'];
 
@@ -97,6 +96,7 @@ const App: React.FC = () => {
   const [isDBOperation, setIsDBOperation] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [scheduling, setScheduling] = useState(false);
+  const [loadingWorkflow, setLoadingWorkflow] = useState(false);
 
   useEffect(() => {
     const user = dbService.getCurrentUser();
@@ -177,7 +177,8 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     setScheduling(true);
     try {
-      const schedule = await geminiService.generateDeploymentSchedule(sites);
+      // Switched to offline Strategy Engine
+      const schedule = await strategyEngine.generateDeploymentSchedule(sites);
       const updatedSites = sites.map(s => {
         const item = schedule.find((sch: any) => sch.siteId === s.id);
         if (item) return { ...s, scheduled_date: item.scheduledDate, status: SiteStatus.PLANNED };
@@ -197,14 +198,38 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     setLoadingAi(true);
     try {
-      const result = await geminiService.analyzeProjectStatus(sites);
+      // Switched to offline Strategy Engine
+      const result = await strategyEngine.analyzeProjectStatus(sites);
       setAiAnalysis(result);
       setActiveTab('ai');
     } catch (error: any) {
       console.error(error);
-      alert("AI Synthesis Failed. Please check your API key.");
+      alert("Synthesis Failed.");
     } finally {
       setLoadingAi(false);
+    }
+  };
+
+  const handleGenerateWorkflow = async (site: Site) => {
+    if (!isAdmin) return;
+    setLoadingWorkflow(true);
+    try {
+      // Switched to offline Strategy Engine
+      const plan = await strategyEngine.getSwapPlan(site);
+      const technicalInstructions = { 
+        steps: plan.steps || [], 
+        alerts: plan.criticalAlerts || [],
+        generated_at: new Date().toISOString()
+      };
+      const updatedSite = { ...site, technicalInstructions };
+      await dbService.upsertSite(updatedSite);
+      const updatedData = await dbService.getSites();
+      setSites(updatedData);
+      setSelectedSite(updatedSite);
+    } catch (error: any) {
+      console.error(error);
+    } finally {
+      setLoadingWorkflow(false);
     }
   };
 
@@ -229,9 +254,9 @@ const App: React.FC = () => {
           <div className="mb-4 bg-slate-800/50 p-4 rounded-xl border border-slate-700">
              <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                <span className="text-[9px] font-black uppercase text-slate-500">System Link Active</span>
+                <span className="text-[9px] font-black uppercase text-slate-500">Local Engine Active</span>
              </div>
-             <p className="text-[8px] text-slate-400">Node Sync: 100%</p>
+             <p className="text-[8px] text-slate-400">Database Sync: 100%</p>
           </div>
           <button onClick={() => { dbService.logout(); setCurrentUser(null); }} className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"><LogOut size={14}/> Sign Out</button>
         </div>
@@ -243,7 +268,7 @@ const App: React.FC = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input type="text" placeholder="Search Inventory..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm" value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}/>
           </div>
-          <div className="flex items-center gap-4 text-[10px] font-black uppercase text-emerald-500"><Wifi size={14}/> Telemetry Synchronized</div>
+          <div className="flex items-center gap-4 text-[10px] font-black uppercase text-emerald-500"><ShieldCheck size={14}/> Offline Security Verified</div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 bg-[#fdfdfd]">
@@ -329,7 +354,7 @@ const App: React.FC = () => {
             <div className="animate-in fade-in duration-500">
                <div className="flex justify-between items-center mb-8">
                   <div><h2 className="text-2xl font-bold text-slate-900">Batch Planning</h2><p className="text-slate-500 text-sm mt-1">Intelligent Deployment Scheduling</p></div>
-                  {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all disabled:opacity-50">{scheduling ? <Loader2 className="animate-spin" size={18}/> : <Calendar size={18}/>} AI Batch Schedule</button>}
+                  {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all disabled:opacity-50">{scheduling ? <Loader2 className="animate-spin" size={18}/> : <Calendar size={18}/>} Offline Scheduler</button>}
                </div>
                <div className="space-y-4">
                  {sites.filter(s => s.status !== SiteStatus.COMPLETED).length === 0 ? (
@@ -357,7 +382,6 @@ const App: React.FC = () => {
                     <div className="lg:col-span-2 p-20 text-center bg-white border border-dashed border-slate-200 rounded-3xl">
                        <PlayCircle className="text-slate-200 mx-auto mb-4" size={48} />
                        <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No active field operations found.</p>
-                       <button onClick={() => setActiveTab('plan')} className="mt-4 text-blue-600 text-[10px] font-black uppercase tracking-widest hover:underline">Schedule a site to begin</button>
                     </div>
                   ) : (
                     sites.filter(s => s.status === SiteStatus.IN_PROGRESS).map(site => (
@@ -384,29 +408,29 @@ const App: React.FC = () => {
           {activeTab === 'ai' && isAdmin && (
             <div className="animate-in slide-in-from-right-4 duration-500">
                <div className="mb-8 flex items-center justify-between">
-                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><Cpu className="text-blue-600" size={28} /> Project Strategist</h2><p className="text-slate-500 text-sm mt-1">AI-driven cognitive analysis of swap telemetry</p></div>
-                  <button onClick={handleRunAiAnalysis} disabled={loadingAi} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} Synthesize Data</button>
+                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><Cpu className="text-blue-600" size={28} /> Strategy Dashboard</h2><p className="text-slate-500 text-sm mt-1">Offline cognitive analysis of swap telemetry</p></div>
+                  <button onClick={handleRunAiAnalysis} disabled={loadingAi} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} Run Analysis</button>
                </div>
                
                {loadingAi && (
                  <div className="bg-white border border-slate-200 rounded-3xl p-20 text-center">
                     <Loader2 className="animate-spin text-blue-600 mx-auto mb-6" size={48} />
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">Analyzing Project Pool...</h3>
-                    <p className="text-sm text-slate-500">Cross-referencing hardware dependencies and regional risk factors with Gemini Core...</p>
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Engaging Offline Strategy Engine...</h3>
+                    <p className="text-sm text-slate-500">Processing hardware dependencies and regional risk factors...</p>
                  </div>
                )}
 
                {aiAnalysis && !loadingAi && (
                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl">
-                      <h4 className="font-bold text-lg text-blue-400 mb-6 flex items-center gap-2"><Terminal size={20}/> AI Insights</h4>
+                      <h4 className="font-bold text-lg text-blue-400 mb-6 flex items-center gap-2"><Terminal size={20}/> Insights</h4>
                       <ul className="space-y-6">
                         {aiAnalysis.strategicInsights.map((insight: string, idx: number) => (
                           <li key={idx} className="flex gap-4"><div className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-blue-500"></div><p className="text-slate-300 text-sm leading-relaxed">{insight}</p></li>
                         ))}
                       </ul>
                       <div className="mt-10 pt-8 border-t border-white/10">
-                         <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Risk Mitigation</h5>
+                         <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Risk Management</h5>
                          <div className="space-y-3">
                            {aiAnalysis.riskMitigation?.map((risk: string, i: number) => (
                              <div key={i} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl text-xs text-slate-400 border border-white/5"><Info size={14} className="text-amber-500"/> {risk}</div>
@@ -415,19 +439,19 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl text-white flex flex-col items-center justify-center text-center shadow-2xl">
-                      <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4">Swap Health Index</div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4">Project Health Index</div>
                       <div className="text-8xl font-black mb-4 tracking-tighter">{aiAnalysis.projectHealth}</div>
                       <div className="w-full max-w-xs bg-white/20 h-3 rounded-full overflow-hidden">
                         <div className="bg-white h-full transition-all duration-1000" style={{width: aiAnalysis.projectHealth}}></div>
                       </div>
-                      <p className="mt-6 text-[10px] font-black uppercase text-blue-100 tracking-[0.3em]">Computed by Gemini-3-Flash</p>
+                      <p className="mt-6 text-[10px] font-black uppercase text-blue-100 tracking-[0.3em]">Computed Offline</p>
                     </div>
                  </div>
                )}
                {!aiAnalysis && !loadingAi && (
                  <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-20 text-center">
                     <Radio className="text-slate-200 mx-auto mb-4" size={48} />
-                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No active AI report. Run synthesis to generate.</p>
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No active report. Run analysis to generate.</p>
                  </div>
                )}
             </div>
@@ -438,7 +462,7 @@ const App: React.FC = () => {
           <div className="fixed inset-0 z-[100] flex items-center justify-end">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedSite(null)}></div>
             <div className="w-full max-w-2xl h-full bg-white shadow-2xl relative z-10 p-10 overflow-y-auto">
-              {isDBOperation && <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-50"><Loader2 className="animate-spin text-blue-600" size={48}/></div>}
+              {(isDBOperation || loadingWorkflow) && <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-50"><Loader2 className="animate-spin text-blue-600" size={48}/></div>}
               
               <div className="flex justify-between items-start mb-8">
                 <div>
@@ -449,7 +473,6 @@ const App: React.FC = () => {
               </div>
 
               <div className="space-y-8">
-                {/* PRIMARY DETAILS */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400">Site Identifier</label>
                   <input disabled={modalMode !== 'create'} value={formData.id || ''} onChange={e=>setFormData({...formData, id:e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" placeholder="MNL-GLOBE-XXX"/></div>
@@ -457,20 +480,18 @@ const App: React.FC = () => {
                   <input value={formData.name || ''} onChange={e=>setFormData({...formData, name:e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold" placeholder="Makati Tower A"/></div>
                 </div>
 
-                {/* GPS DETAILS */}
                 <div className="p-6 bg-blue-50 rounded-3xl border border-blue-100 space-y-4">
-                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2"><MapPin size={14}/> Geospatial Telemetry (GPS)</h4>
+                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2"><MapPin size={14}/> GPS Telemetry</h4>
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400">Latitude (DECIMAL 10,8)</label>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400">Latitude</label>
                     <input type="number" step="0.00000001" value={formData.lat || ''} onChange={e=>setFormData({...formData, lat: parseFloat(e.target.value)})} className="w-full p-3 bg-white border border-blue-100 rounded-xl font-mono text-xs"/></div>
-                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400">Longitude (DECIMAL 11,8)</label>
+                    <div className="space-y-1"><label className="text-[10px] font-black text-slate-400">Longitude</label>
                     <input type="number" step="0.00000001" value={formData.lng || ''} onChange={e=>setFormData({...formData, lng: parseFloat(e.target.value)})} className="w-full p-3 bg-white border border-blue-100 rounded-xl font-mono text-xs"/></div>
                   </div>
                 </div>
 
-                {/* EQUIPMENT TO BE SWAPPED OUT (Legacy) */}
                 <div className="p-6 bg-red-50 rounded-3xl border border-red-100 space-y-4">
-                  <h4 className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2"><RefreshCw size={14}/> Hardware to Swapped With (Legacy)</h4>
+                  <h4 className="text-[10px] font-black text-red-600 uppercase tracking-widest flex items-center gap-2"><RefreshCw size={14}/> Legacy Equipment (To Swap Out)</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1"><label className="text-[10px] font-black text-slate-400">Legacy Vendor</label>
                     <select value={formData.current_vendor} onChange={e=>setFormData({...formData, current_vendor: e.target.value as any})} className="w-full p-3 bg-white border border-red-100 rounded-xl font-bold text-sm">
@@ -482,9 +503,8 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* EQUIPMENT TO INSTALL (Ericsson) */}
                 <div className="p-6 bg-emerald-50 rounded-3xl border border-emerald-100 space-y-4">
-                  <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2"><Server size={14}/> Equipment to Install (Target: Ericsson)</h4>
+                  <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest flex items-center gap-2"><Server size={14}/> Ericsson Equipment (To Install)</h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1"><label className="text-[10px] font-black text-slate-400">Ericsson Model</label>
                     <input value={formData.equipment?.find(e=>e.type==='Ericsson-Module')?.model || ''} onChange={e=>handleEquipmentChange('install', 'model', e.target.value)} className="w-full p-3 bg-white border border-emerald-100 rounded-xl text-sm" placeholder="e.g. BB 6630"/></div>
@@ -493,7 +513,38 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="flex gap-4 pb-8">
+                {modalMode === 'view' && isAdmin && (
+                  <div className="bg-slate-900 rounded-3xl p-8 text-white relative shadow-xl overflow-hidden">
+                    <div className="flex justify-between items-center mb-6">
+                      <h4 className="font-bold text-lg flex items-center gap-2"><ShieldCheck size={22} className="text-emerald-400"/> Technical Procedure (MOP)</h4>
+                      {selectedSite.technicalInstructions && <span className="text-[9px] font-black uppercase text-emerald-400">Validated Offline</span>}
+                    </div>
+                    {selectedSite.technicalInstructions ? (
+                      <div className="space-y-4">
+                        {selectedSite.technicalInstructions.steps.map((s, i) => (
+                          <div key={i} className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5">
+                            <div className="text-blue-400 font-black text-xs">{i+1}.</div>
+                            <div className="flex-1">
+                              <div className="text-sm font-bold">{s.task}</div>
+                              <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-widest flex gap-3">
+                                <span><Clock size={10} className="inline mr-1"/> {s.estimatedDuration}</span>
+                                <span><ShieldCheck size={10} className="inline mr-1"/> {s.safetyPrecaution}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="w-full text-[10px] text-blue-400 font-black uppercase mt-4 flex items-center justify-center gap-2 hover:bg-white/5 py-2 rounded-xl transition-all"><RefreshCw size={12}/> Re-compute Procedure</button>
+                      </div>
+                    ) : (
+                      <div className="text-center py-6">
+                        <p className="text-slate-500 text-sm mb-6">MOP not yet generated for this site configuration.</p>
+                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="w-full bg-blue-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all hover:bg-blue-500 shadow-lg"><Cpu size={18}/> Generate Local Procedure</button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex gap-4 pb-12">
                   <button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors">Commit to Database</button>
                   <button onClick={() => setSelectedSite(null)} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-black hover:bg-slate-50 transition-colors">Cancel</button>
                 </div>
