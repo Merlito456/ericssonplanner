@@ -96,7 +96,15 @@ export class DatabaseService {
         status: SiteStatus.IN_PROGRESS,
         risk_level: RiskLevel.Low,
         progress: 35,
-        last_update: new Date().toISOString()
+        last_update: new Date().toISOString(),
+        milestones: {
+          survey: { plan: '2024-06-01', actual: '2024-06-02' },
+          survey_report: { plan: '2024-06-05', actual: '2024-06-07' },
+          installation: { plan: '2024-06-15', actual: '' },
+          integration: { plan: '2024-06-20', actual: '' },
+          completion_report: { plan: '2024-06-25', actual: '' },
+          site_close: { plan: '2024-06-30', actual: '' },
+        }
       }
     ];
     localStorage.setItem(SITES_KEY, JSON.stringify(seeds));
@@ -117,7 +125,6 @@ export class DatabaseService {
     return user;
   }
 
-  // Fix: Added missing register method
   async register(name: string, email: string, password: string): Promise<User> {
     await this.delay(600);
     const users = this.getUsers();
