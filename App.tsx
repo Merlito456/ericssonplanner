@@ -9,7 +9,7 @@ import {
   Terminal, X, Calendar, PlayCircle, Clock, ListTodo, TrendingUp, 
   Zap, Loader2, CheckCircle, FileText, Plus, Trash2, Edit2, Save, 
   History, MessageSquare, Radio, Server, ShieldCheck, RefreshCw, LogOut, Lock, User as UserIcon,
-  MapPin, Navigation, Info
+  MapPin, Navigation, Info, Wifi, WifiOff
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
@@ -35,14 +35,6 @@ const StatusCard: React.FC<{icon: React.ReactNode, label: string, value: string,
   <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200"><div className="flex justify-between items-start mb-6"><div className="p-3 bg-slate-50 rounded-2xl">{icon}</div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span></div><h3 className="text-4xl font-black text-slate-900">{value}</h3><div className="mt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">{sub}</div></div>
 );
 
-const EmptyState: React.FC<{onAction: () => void}> = ({onAction}) => (
-  <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-16 text-center">
-    <Database className="text-slate-300 mx-auto mb-6" size={48} />
-    <h3 className="text-xl font-bold text-slate-800 mb-2">Cluster empty</h3>
-    <button onClick={onAction} className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold mt-6 shadow-lg shadow-blue-500/20">Go to Repository</button>
-  </div>
-);
-
 const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -64,7 +56,7 @@ const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
         onAuth(user);
       }
     } catch (err: any) {
-      setError(err.message || "An unexpected authentication error occurred.");
+      setError(err.message || "Authentication failure.");
     } finally {
       setLoading(false);
     }
@@ -77,23 +69,19 @@ const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
          <div className="relative z-10 text-white max-w-lg">
            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-4xl font-black mb-10 shadow-2xl">E</div>
            <h1 className="text-6xl font-black leading-tight mb-6">Nationwide Network Swap.</h1>
-           <p className="text-slate-400 text-xl leading-relaxed">Precision project management for the Ericsson-Globe infrastructure modernization initiative.</p>
-           <div className="mt-12 flex gap-12">
-             <div><div className="text-3xl font-bold text-blue-500 mb-1">2.4k</div><div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Active Sites</div></div>
-             <div><div className="text-3xl font-bold text-emerald-500 mb-1">99.9%</div><div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Uptime Target</div></div>
-           </div>
+           <p className="text-slate-400 text-xl leading-relaxed">Modernization project planner for the Ericsson-Globe nationwide equipment replacement.</p>
          </div>
       </div>
-      <div className="flex-1 flex items-center justify-center p-10 lg:p-24 bg-slate-50">
+      <div className="flex-1 flex items-center justify-center p-10 bg-slate-50">
         <div className="w-full max-w-md animate-in fade-in slide-in-from-right duration-700">
            <div className="mb-10 text-center lg:text-left">
-             <h2 className="text-3xl font-black text-slate-900">{isLogin ? 'Sign In' : 'Create Account'}</h2>
-             <p className="text-slate-500 mt-2">{isLogin ? 'Access the planner dashboard' : 'Join the Ericsson deployment team'}</p>
+             <h2 className="text-3xl font-black text-slate-900">{isLogin ? 'Sign In' : 'Register'}</h2>
+             <p className="text-slate-500 mt-2">Enterprise Access Required</p>
            </div>
            <form onSubmit={handleSubmit} className="space-y-6">
              {!isLogin && (
                <div><label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Full Name</label>
-               <input type="text" required value={name} onChange={e=>setName(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="John Doe"/></div>
+               <input type="text" required value={name} onChange={e=>setName(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="Ericsson Field Engineer"/></div>
              )}
              <div><label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Enterprise Email</label>
              <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="user@ericsson.com"/></div>
@@ -104,16 +92,9 @@ const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
                {loading ? <Loader2 className="animate-spin" size={20}/> : <><Lock size={18}/> {isLogin ? 'Enter Planner' : 'Register Account'}</>}
              </button>
            </form>
-           <div className="mt-8 text-center text-slate-500 text-sm">
-             {isLogin ? "Don't have an account?" : "Already registered?"} 
-             <button onClick={() => setIsLogin(!isLogin)} className="ml-2 text-blue-600 font-bold hover:underline">
-               {isLogin ? 'Sign Up' : 'Sign In'}
-             </button>
-           </div>
-           <div className="mt-12 pt-8 border-t border-slate-200 flex justify-center gap-6">
-             <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2"><ShieldCheck size={12}/> Secure 256-bit</div>
-             <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2"><UserIcon size={12}/> SSO Integrated</div>
-           </div>
+           <button onClick={() => setIsLogin(!isLogin)} className="mt-8 w-full text-slate-500 text-sm font-bold hover:text-blue-600 transition-colors">
+             {isLogin ? "Need an account? Contact Ops" : "Back to Login"}
+           </button>
         </div>
       </div>
     </div>
@@ -136,6 +117,9 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const [isDBOperation, setIsDBOperation] = useState(false);
+
+  // Check if API key is present in environment
+  const isAiConfigured = !!process.env.API_KEY;
 
   useEffect(() => {
     const init = async () => {
@@ -178,8 +162,6 @@ const App: React.FC = () => {
     { day: 'Wed', target: 3, actual: sites.length > 0 ? Math.floor(stats.completed * 0.4) : 0 },
     { day: 'Thu', target: 3, actual: sites.length > 0 ? Math.floor(stats.completed * 0.7) : 0 },
     { day: 'Fri', target: 2, actual: stats.completed },
-    { day: 'Sat', target: 1, actual: 0 },
-    { day: 'Sun', target: 0, actual: 0 },
   ], [stats.completed, sites.length]);
 
   const filteredSites = useMemo(() => {
@@ -195,10 +177,6 @@ const App: React.FC = () => {
 
   const handleRunAiAnalysis = async () => {
     if (!isAdmin) return;
-    if (sites.length === 0) {
-      alert("Please add sites in the Repository before running AI analysis.");
-      return;
-    }
     setLoadingAi(true);
     setAiError(null);
     try {
@@ -206,8 +184,7 @@ const App: React.FC = () => {
       setAiAnalysis(result);
       setActiveTab('ai');
     } catch (error: any) {
-      console.error("AI Analysis failed", error);
-      setAiError(error.message || "Failed to communicate with the AI Strategist. Please check your API connectivity.");
+      setAiError(error.message);
     } finally {
       setLoadingAi(false);
     }
@@ -215,27 +192,19 @@ const App: React.FC = () => {
 
   const handleAutoSchedule = async () => {
     if (!isAdmin) return;
-    if (sites.length === 0) {
-      alert("No sites found to schedule.");
-      return;
-    }
     setScheduling(true);
     setAiError(null);
     try {
       const schedule = await geminiService.generateDeploymentSchedule(sites);
       const updatedSites = sites.map(s => {
         const item = schedule.find((sch: any) => sch.siteId === s.id);
-        if (item) {
-          return { ...s, scheduledDate: item.scheduledDate, status: SiteStatus.PLANNED };
-        }
+        if (item) return { ...s, scheduledDate: item.scheduledDate, status: SiteStatus.PLANNED };
         return s;
       });
       for (const site of updatedSites) await dbService.upsertSite(site);
       setSites(updatedSites);
-      alert("AI Scheduling Complete. Database synced.");
     } catch (error: any) {
-      console.error("Scheduling failed", error);
-      setAiError(error.message || "Logistics AI encountered an error while batching dates.");
+      setAiError(error.message);
     } finally {
       setScheduling(false);
     }
@@ -258,8 +227,7 @@ const App: React.FC = () => {
       setSites(prev => prev.map(s => s.id === site.id ? updatedSite : s));
       setSelectedSite(updatedSite);
     } catch (error: any) {
-      console.error("Workflow Generation failed", error);
-      setAiError(error.message || "Engineering AI failed to generate technical MOP.");
+      setAiError(error.message);
     } finally {
       setLoadingWorkflow(false);
       setIsDBOperation(false);
@@ -287,15 +255,7 @@ const App: React.FC = () => {
 
   const handleSaveSite = async () => {
     if (!isAdmin) return;
-    if (!formData.id || !formData.name) {
-      alert("Site ID and Site Name are mandatory.");
-      return;
-    }
-    if (formData.coordinates?.lat === undefined || formData.coordinates?.lng === undefined) {
-      alert("GPS Coordinates (Latitude and Longitude) are mandatory.");
-      return;
-    }
-
+    if (!formData.id || !formData.name) return alert("Site ID/Name required.");
     setIsDBOperation(true);
     try {
       const siteToSave = { 
@@ -315,7 +275,7 @@ const App: React.FC = () => {
 
   const handleDeleteSite = async (id: string) => {
     if (!isAdmin) return;
-    if (window.confirm('Delete this site from the database?')) {
+    if (window.confirm('Purge site from telemetry?')) {
       setIsDBOperation(true);
       try {
         await dbService.deleteSite(id);
@@ -329,27 +289,25 @@ const App: React.FC = () => {
 
   if (isInitialLoading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-900 text-white font-['Inter']">
+      <div className="flex h-screen items-center justify-center bg-slate-900">
         <Loader2 className="animate-spin text-blue-500" size={48} />
       </div>
     );
   }
 
-  if (!currentUser) {
-    return <AuthPage onAuth={(user) => { setCurrentUser(user); dbService.getSites().then(setSites); }} />;
-  }
+  if (!currentUser) return <AuthPage onAuth={u => { setCurrentUser(u); dbService.getSites().then(setSites); }} />;
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-['Inter']">
-      {/* GLOBAL AI ERROR NOTIFICATION */}
+      {/* GLOBAL AI ERROR OVERLAY */}
       {aiError && (
         <div className="fixed bottom-10 right-10 z-[200] w-96 bg-white border border-red-100 rounded-3xl shadow-2xl p-6 animate-in slide-in-from-bottom duration-300">
           <div className="flex items-start gap-4">
             <div className="bg-red-50 p-2 rounded-xl text-red-500 shrink-0"><AlertTriangle size={24}/></div>
-            <div>
-              <h4 className="font-black text-slate-900 text-sm uppercase tracking-widest mb-1">AI System Error</h4>
+            <div className="flex-1">
+              <h4 className="font-black text-slate-900 text-sm uppercase tracking-widest mb-1">Configuration Required</h4>
               <p className="text-xs text-slate-500 leading-relaxed mb-4">{aiError}</p>
-              <button onClick={() => setAiError(null)} className="text-[10px] font-black uppercase text-blue-600 hover:text-blue-700 tracking-widest">Dismiss Report</button>
+              <button onClick={() => setAiError(null)} className="text-[10px] font-black uppercase text-blue-600 tracking-widest hover:underline">Dismiss</button>
             </div>
           </div>
         </div>
@@ -357,47 +315,52 @@ const App: React.FC = () => {
 
       <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 shrink-0">
         <div className="p-6 flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xl shadow-lg shadow-blue-900/40">E</div>
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xl shadow-lg">E</div>
           <div>
             <h1 className="text-white font-bold leading-none text-sm">Ericsson Globe</h1>
-            <p className="text-[10px] text-slate-400 mt-1 font-bold uppercase tracking-widest">PH Swap Planner</p>
+            <p className="text-[10px] text-slate-400 mt-1 font-bold uppercase tracking-widest">Swap Planner</p>
           </div>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-          <NavItem active={activeTab === 'monitoring'} onClick={() => setActiveTab('monitoring')} icon={<LayoutDashboard size={18}/>} label="Monitoring" />
-          <NavItem active={activeTab === 'sites'} onClick={() => setActiveTab('sites')} icon={<Database size={18}/>} label="Site Inventory" />
-          <NavItem active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={<Calendar size={18}/>} label="Plan Deployment" />
-          <NavItem active={activeTab === 'actual'} onClick={() => setActiveTab('actual')} icon={<PlayCircle size={18}/>} label="Actual Deployment" />
+        
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          <NavItem active={activeTab === 'monitoring'} onClick={() => setActiveTab('monitoring')} icon={<LayoutDashboard size={18}/>} label="Dashboard" />
+          <NavItem active={activeTab === 'sites'} onClick={() => setActiveTab('sites')} icon={<Database size={18}/>} label="Inventory" />
+          <NavItem active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={<Calendar size={18}/>} label="Planning" />
+          <NavItem active={activeTab === 'actual'} onClick={() => setActiveTab('actual')} icon={<PlayCircle size={18}/>} label="Field Ops" />
           <NavItem active={activeTab === 'map'} onClick={() => setActiveTab('map')} icon={<MapIcon size={18}/>} label="Deployment Map" />
           {isAdmin && <NavItem active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<BrainCircuit size={18}/>} label="AI Strategy" />}
         </nav>
-        <div className="p-4 border-t border-slate-800 space-y-3">
-          <div className="px-4 py-3 bg-slate-800/40 rounded-xl">
-             <div className="flex items-center gap-3 mb-1">
-               <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-[10px] font-black">
-                 {currentUser.role[0]}
-               </div>
-               <span className="text-[10px] font-bold text-white truncate">{currentUser.name}</span>
-             </div>
-             <p className="text-[9px] text-slate-500 font-black uppercase tracking-widest">{currentUser.role} Account</p>
+
+        <div className="p-4 border-t border-slate-800 space-y-4">
+          {/* SYSTEM INTELLIGENCE STATUS */}
+          <div className={`px-4 py-3 rounded-xl border transition-all ${isAiConfigured ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20'}`}>
+            <div className="flex items-center gap-3">
+              {isAiConfigured ? <Wifi className="text-emerald-400" size={14}/> : <WifiOff className="text-red-400" size={14}/>}
+              <div>
+                <p className={`text-[9px] font-black uppercase tracking-widest ${isAiConfigured ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {isAiConfigured ? 'AI Core: Active' : 'AI Core: Offline'}
+                </p>
+                <p className="text-[8px] text-slate-500 mt-0.5">Cloudflare Environs</p>
+              </div>
+            </div>
           </div>
-          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors">
-            <LogOut size={14}/> Sign Out
-          </button>
+
+          <div className="px-4 py-3 bg-slate-800/40 rounded-xl flex items-center gap-3">
+             <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-[10px] font-black">{currentUser.role[0]}</div>
+             <span className="text-[10px] font-bold text-white truncate">{currentUser.name}</span>
+          </div>
+          <button onClick={handleLogout} className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"><LogOut size={14}/> Sign Out</button>
         </div>
       </aside>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 z-10 shrink-0">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
           <div className="relative w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input type="text" placeholder="Search by Site ID or Name..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+            <input type="text" placeholder="Search telemetry..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
           <div className="flex items-center gap-4">
-             {isAdmin && <button onClick={async () => { if(window.confirm('Purge DB?')) { await dbService.clearDatabase(); setSites([]); } }} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Purge Records"><RefreshCw size={18}/></button>}
-             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-lg">
-                <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Active Project</span>
-             </div>
+             {isAdmin && <button onClick={async () => { if(window.confirm('Purge local cache?')) { await dbService.clearDatabase(); setSites([]); } }} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><RefreshCw size={18}/></button>}
           </div>
         </header>
 
@@ -405,21 +368,25 @@ const App: React.FC = () => {
           {activeTab === 'monitoring' && (
             <div className="space-y-8 animate-in fade-in duration-500">
               <div className="flex justify-between items-end">
-                <div><h2 className="text-2xl font-bold text-slate-900">Project Monitoring</h2><p className="text-slate-500 text-sm mt-1">Real-time status of the swap operation</p></div>
-                <div className="px-3 py-1 bg-emerald-50 text-emerald-600 rounded-lg text-xs font-bold border border-emerald-100 flex items-center gap-1"><TrendingUp size={14}/> +12% Efficiency</div>
+                <div><h2 className="text-2xl font-bold text-slate-900">Project Overview</h2><p className="text-slate-500 text-sm mt-1">Real-time nationwide synchronization</p></div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <StatusCard icon={<Activity className="text-blue-500" />} label="Completion" value={`${stats.progress.toFixed(1)}%`} sub="Live Sync" />
+                <StatusCard icon={<Activity className="text-blue-500" />} label="Overall Sync" value={`${stats.progress.toFixed(1)}%`} sub="Telemetry" />
                 <StatusCard icon={<CheckCircle2 className="text-emerald-500" />} label="Swapped" value={stats.completed.toString()} sub={`${stats.total - stats.completed} pending`} />
-                <StatusCard icon={<Clock className="text-amber-500" />} label="Active" value={stats.inProgress.toString()} sub="Field Ops" />
-                <StatusCard icon={<AlertTriangle className="text-red-500" />} label="High Risk" value={stats.highRisk.toString()} sub="Attention needed" />
+                <StatusCard icon={<Clock className="text-amber-500" />} label="In-Field" value={stats.inProgress.toString()} sub="Active Ops" />
+                <StatusCard icon={<AlertTriangle className="text-red-500" />} label="High Risk" value={stats.highRisk.toString()} sub="Site Blocks" />
               </div>
+              
               {sites.length === 0 ? (
-                <EmptyState onAction={() => setActiveTab('sites')} />
+                <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-16 text-center">
+                  <Database className="text-slate-300 mx-auto mb-6" size={48} />
+                  <h3 className="text-xl font-bold text-slate-800 mb-2">No Site Data</h3>
+                  <button onClick={() => setActiveTab('sites')} className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold mt-6 shadow-lg shadow-blue-500/20 transition-transform active:scale-95">Go to Inventory</button>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   <div className="lg:col-span-2 bg-white p-6 rounded-2xl shadow-sm border border-slate-200 h-[400px]">
-                    <h3 className="font-bold text-slate-800 mb-6">Daily Flow</h3>
+                    <h3 className="font-bold text-slate-800 mb-6">Execution Velocity</h3>
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={monitoringData}>
                         <defs><linearGradient id="colorTarget" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/><stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/></linearGradient></defs>
@@ -427,21 +394,20 @@ const App: React.FC = () => {
                         <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
                         <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 12}} />
                         <Tooltip />
-                        <Area type="monotone" dataKey="target" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorTarget)" />
-                        <Area type="monotone" dataKey="actual" stroke="#10b981" strokeWidth={3} fillOpacity={0} />
+                        <Area type="monotone" dataKey="actual" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorTarget)" />
                       </AreaChart>
                     </ResponsiveContainer>
                   </div>
                   <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                    <h3 className="font-bold text-slate-800 mb-6">Database Distribution</h3>
+                    <h3 className="font-bold text-slate-800 mb-6">Site Distribution</h3>
                     <div className="h-[240px]">
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie data={[
-                            { name: 'Completed', value: stats.completed },
-                            { name: 'Progress', value: stats.inProgress },
-                            { name: 'Blocked', value: stats.highRisk },
-                            { name: 'Pending', value: stats.total - stats.completed - stats.inProgress - stats.highRisk },
+                            { name: 'Done', value: stats.completed },
+                            { name: 'Live', value: stats.inProgress },
+                            { name: 'Risk', value: stats.highRisk },
+                            { name: 'Plan', value: stats.total - stats.completed - stats.inProgress - stats.highRisk },
                           ].filter(d => d.value > 0)} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
                             {COLORS.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                           </Pie>
@@ -458,42 +424,32 @@ const App: React.FC = () => {
           {activeTab === 'sites' && (
             <div className="animate-in fade-in duration-500">
                <div className="flex justify-between items-center mb-8">
-                  <div><h2 className="text-2xl font-bold text-slate-900">Site Repository</h2><p className="text-slate-500 text-sm mt-1">PostgreSQL Cluster Records</p></div>
+                  <div><h2 className="text-2xl font-bold text-slate-900">Infrastructure Inventory</h2><p className="text-slate-500 text-sm mt-1">Nodal database management</p></div>
                   <div className="flex gap-3">
-                    {isAdmin && <button onClick={() => { setModalMode('create'); setFormData({id: `SITE-${Math.floor(Math.random()*900)+100}`, name: '', region: 'NCR', currentVendor: Vendor.HUAWEI, status: SiteStatus.PENDING, equipment: [], riskLevel: 'Low', coordinates: {lat: 14.59, lng: 120.98}, tasks: DEFAULT_TASKS.map(t=>({...t, isCompleted: false}))}); setSelectedSite({} as Site); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-500/20 font-bold text-sm"><Plus size={18}/> New Entry</button>}
-                    <button onClick={() => alert("Exporting CSV...")} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-slate-50"><Download size={18}/> Export CSV</button>
+                    {isAdmin && <button onClick={() => { setModalMode('create'); setFormData({id: `E-${Math.floor(1000 + Math.random() * 9000)}`, name: '', region: 'NCR', currentVendor: Vendor.HUAWEI, status: SiteStatus.PENDING, coordinates: {lat: 14.59, lng: 120.98}, tasks: DEFAULT_TASKS.map(t=>({...t, isCompleted: false}))}); setSelectedSite({} as Site); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-blue-700 shadow-lg font-bold text-sm transition-all active:scale-95"><Plus size={18}/> New Site</button>}
                   </div>
                </div>
                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                  <table className="w-full text-left">
                    <thead className="bg-slate-50 border-b border-slate-200">
-                     <tr><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Location</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Progress</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Action</th></tr>
+                     <tr><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Name</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Region</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Sync</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Action</th></tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                      {filteredSites.map(site => (
                        <tr key={site.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => { setSelectedSite(site); setModalMode('view'); }}>
                          <td className="px-6 py-4 font-bold text-slate-900">{site.id}</td>
                          <td className="px-6 py-4 text-slate-700 text-sm font-medium">{site.name}</td>
-                         <td className="px-6 py-4">
-                           <div className="flex flex-col">
-                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{site.region}</span>
-                             <span className="text-[9px] text-slate-500 flex items-center gap-1 font-mono"><MapPin size={8}/> {site.coordinates.lat.toFixed(4)}, {site.coordinates.lng.toFixed(4)}</span>
-                           </div>
-                         </td>
+                         <td className="px-6 py-4 text-[10px] font-black uppercase text-slate-400 tracking-tighter">{site.region}</td>
                          <td className="px-6 py-4"><span className={`px-2 py-1 rounded-md text-[10px] font-black border ${site.currentVendor === Vendor.HUAWEI ? 'bg-red-50 text-red-600 border-red-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{site.currentVendor}</span></td>
-                         <td className="px-6 py-4"><div className="w-16 bg-slate-100 h-1.5 rounded-full"><div className="bg-blue-600 h-full" style={{width: `${site.progress || 0}%`}}></div></div></td>
-                         <td className="px-6 py-4 text-xs font-semibold">{site.status}</td>
+                         <td className="px-6 py-4"><div className="w-16 bg-slate-100 h-1 rounded-full"><div className="bg-blue-600 h-full" style={{width: `${site.progress || 0}%`}}></div></div></td>
                          <td className="px-6 py-4 flex gap-2">
-                           <button onClick={(e) => { e.stopPropagation(); setModalMode('edit'); setFormData(site); setSelectedSite(site); }} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400"><Edit2 size={16}/></button>
-                           {isAdmin && <button onClick={(e) => { e.stopPropagation(); handleDeleteSite(site.id); }} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-red-500"><Trash2 size={16}/></button>}
+                           <button onClick={e => { e.stopPropagation(); setModalMode('edit'); setFormData(site); setSelectedSite(site); }} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400"><Edit2 size={16}/></button>
+                           {isAdmin && <button onClick={e => { e.stopPropagation(); handleDeleteSite(site.id); }} className="p-2 hover:bg-slate-200 rounded-lg text-slate-400 hover:text-red-500"><Trash2 size={16}/></button>}
                          </td>
                        </tr>
                      ))}
                    </tbody>
                  </table>
-                 {filteredSites.length === 0 && (
-                   <div className="p-20 text-center"><p className="text-slate-400 text-sm font-medium italic">No sites match the current telemetry filter.</p></div>
-                 )}
                </div>
             </div>
           )}
@@ -501,76 +457,70 @@ const App: React.FC = () => {
           {activeTab === 'plan' && (
             <div className="animate-in fade-in duration-500">
                <div className="flex justify-between items-center mb-8">
-                  <div><h2 className="text-2xl font-bold text-slate-900">Logistics Planning</h2><p className="text-slate-500 text-sm mt-1">Optimized scheduling logic via Gemini 3 Flash</p></div>
-                  {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-all disabled:opacity-50">{scheduling ? <Loader2 className="animate-spin" size={18}/> : <Calendar size={18}/>} {scheduling ? 'Calculating Batch...' : 'Schedule Batch'}</button>}
+                  <div><h2 className="text-2xl font-bold text-slate-900">Batch Planning</h2><p className="text-slate-500 text-sm mt-1">Gemini AI Optimized Scheduling</p></div>
+                  {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling || !isAiConfigured} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all disabled:opacity-50">{scheduling ? <Loader2 className="animate-spin" size={18}/> : <Calendar size={18}/>} AI Scheduler</button>}
                </div>
                <div className="space-y-4">
-                 {sites.filter(s => s.status !== SiteStatus.COMPLETED).length === 0 ? (
-                    <div className="p-20 bg-white border border-dashed border-slate-200 rounded-3xl text-center"><p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">All sites deployment complete or none listed.</p></div>
-                 ) : (
-                   sites.filter(s => s.status !== SiteStatus.COMPLETED).map(site => (
-                     <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group">
-                       <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region} • <span className="font-mono text-[9px]">{site.coordinates.lat.toFixed(4)}, {site.coordinates.lng.toFixed(4)}</span></div></div></div>
-                       <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Target Date</div><div className="text-sm font-bold text-slate-700">{site.scheduledDate || 'TBD'}</div></div><button onClick={() => { setSelectedSite(site); setModalMode('view'); }} className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
-                     </div>
-                   ))
-                 )}
+                 {sites.filter(s => s.status !== SiteStatus.COMPLETED).map(site => (
+                   <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group">
+                     <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div></div></div>
+                     <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Target</div><div className="text-sm font-bold text-slate-700">{site.scheduledDate || 'TBD'}</div></div><button onClick={() => { setSelectedSite(site); setModalMode('view'); }} className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
+                   </div>
+                 ))}
                </div>
             </div>
           )}
 
           {activeTab === 'actual' && (
             <div className="animate-in fade-in duration-500">
-               <div className="mb-8"><h2 className="text-2xl font-bold text-slate-900">Live Execution</h2><p className="text-slate-500 text-sm mt-1">Field-level task synchronization</p></div>
+               <div className="mb-8"><h2 className="text-2xl font-bold text-slate-900">Field Handover</h2><p className="text-slate-500 text-sm mt-1">Live procedure tracking</p></div>
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {sites.filter(s => s.status === SiteStatus.IN_PROGRESS).length === 0 ? (
-                    <div className="lg:col-span-2 p-20 bg-white border border-dashed border-slate-200 rounded-3xl text-center"><p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No active field operations found.</p></div>
-                  ) : (
-                    sites.filter(s => s.status === SiteStatus.IN_PROGRESS).map(site => (
-                      <div key={site.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden relative shadow-sm">
-                        {isDBOperation && <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10"><Loader2 className="animate-spin text-blue-600" /></div>}
-                        <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{site.id}</div><h3 className="text-xl font-bold mt-1">{site.name}</h3><div className="text-[9px] text-slate-400 font-mono">{site.coordinates.lat}, {site.coordinates.lng}</div></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
-                        <div className="p-6 space-y-3">
-                           {site.tasks?.map(task => (
-                             <div key={task.id} onClick={() => handleTaskToggle(site.id, task.id)} className={`p-4 rounded-2xl flex items-center justify-between cursor-pointer border ${task.isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-100'}`}>
-                               <div className="flex items-center gap-3"><div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${task.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>{task.isCompleted && <CheckCircle size={14}/>}</div><span className={`text-sm font-medium ${task.isCompleted ? 'line-through opacity-60' : ''}`}>{task.label}</span></div>
-                               <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase bg-slate-200 text-slate-500">{task.assignedRole}</span>
-                             </div>
-                           ))}
-                        </div>
+                  {sites.filter(s => s.status === SiteStatus.IN_PROGRESS).map(site => (
+                    <div key={site.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden relative shadow-sm transition-all hover:shadow-md">
+                      {isDBOperation && <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10"><Loader2 className="animate-spin text-blue-600" /></div>}
+                      <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{site.id}</div><h3 className="text-xl font-bold mt-1">{site.name}</h3></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
+                      <div className="p-6 space-y-3">
+                         {site.tasks?.map(task => (
+                           <div key={task.id} onClick={() => handleTaskToggle(site.id, task.id)} className={`p-4 rounded-2xl flex items-center justify-between cursor-pointer border transition-colors ${task.isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-100 hover:border-blue-200'}`}>
+                             <div className="flex items-center gap-3"><div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${task.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>{task.isCompleted && <CheckCircle size={14}/>}</div><span className={`text-sm font-medium ${task.isCompleted ? 'line-through opacity-60' : ''}`}>{task.label}</span></div>
+                             <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase bg-slate-200 text-slate-500">{task.assignedRole}</span>
+                           </div>
+                         ))}
                       </div>
-                    ))
-                  )}
+                    </div>
+                  ))}
                </div>
             </div>
           )}
 
-          {activeTab === 'map' && <SiteMap sites={sites} onSiteClick={(s) => { setSelectedSite(s); setModalMode('view'); }} />}
+          {activeTab === 'map' && <SiteMap sites={sites} onSiteClick={s => { setSelectedSite(s); setModalMode('view'); }} />}
 
           {activeTab === 'ai' && isAdmin && (
             <div className="animate-in slide-in-from-right-4 duration-500">
                <div className="mb-8 flex items-center justify-between">
-                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><BrainCircuit className="text-blue-600" size={28} /> AI Strategist</h2><p className="text-slate-500 text-sm mt-1">Admin-only tactical insights via Gemini 3 Flash</p></div>
-                  <button onClick={handleRunAiAnalysis} disabled={loadingAi} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} {loadingAi ? 'Synthesizing Data...' : 'Recalculate Strategy'}</button>
+                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><BrainCircuit className="text-blue-600" size={28} /> Project Strategist</h2><p className="text-slate-500 text-sm mt-1">Cognitive analysis of nationwide swap telemetry</p></div>
+                  <button onClick={handleRunAiAnalysis} disabled={loadingAi || !isAiConfigured} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} Synthesize</button>
                </div>
+               
                {loadingAi && (
                  <div className="bg-white border border-slate-200 rounded-3xl p-20 text-center">
                     <Loader2 className="animate-spin text-blue-600 mx-auto mb-6" size={48} />
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">Engaging AI Clusters</h3>
-                    <p className="text-sm text-slate-500">Analyzing nationwide site inventory for logistics and hardware dependencies...</p>
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Engaging Core Cluster</h3>
+                    <p className="text-sm text-slate-500">Processing hardware dependencies and regional risk factors...</p>
                  </div>
                )}
+
                {aiAnalysis && !loadingAi && (
                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl">
-                      <h4 className="font-bold text-lg text-blue-400 mb-6 flex items-center gap-2"><Terminal size={20}/> Deployment Insights</h4>
+                      <h4 className="font-bold text-lg text-blue-400 mb-6 flex items-center gap-2"><Terminal size={20}/> Insights</h4>
                       <ul className="space-y-6">
                         {aiAnalysis.strategicInsights.map((insight: string, idx: number) => (
                           <li key={idx} className="flex gap-4"><div className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-blue-500"></div><p className="text-slate-300 text-sm leading-relaxed">{insight}</p></li>
                         ))}
                       </ul>
                       <div className="mt-10 pt-8 border-t border-white/10">
-                         <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Risk Management</h5>
+                         <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Risk Management</h5>
                          <div className="space-y-3">
                            {aiAnalysis.riskMitigation?.map((risk: string, i: number) => (
                              <div key={i} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl text-xs text-slate-400 border border-white/5"><Info size={14} className="text-amber-500"/> {risk}</div>
@@ -578,18 +528,14 @@ const App: React.FC = () => {
                          </div>
                       </div>
                     </div>
-                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl text-white flex flex-col items-center justify-center text-center shadow-2xl shadow-blue-500/20">
-                      <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4">Project Health Index</div>
+                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl text-white flex flex-col items-center justify-center text-center shadow-2xl">
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4">Swap Health Index</div>
                       <div className="text-8xl font-black mb-4 tracking-tighter">{aiAnalysis.projectHealth}</div>
                       <div className="w-full max-w-xs bg-white/20 h-3 rounded-full overflow-hidden">
                         <div className="bg-white h-full transition-all duration-1000" style={{width: aiAnalysis.projectHealth}}></div>
                       </div>
-                      <p className="text-[10px] text-blue-100 font-bold uppercase tracking-widest mt-6">Calculated across {sites.length} Active Nodes</p>
                     </div>
                  </div>
-               )}
-               {!aiAnalysis && !loadingAi && (
-                 <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-20 text-center"><p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Strategic report pending synthesis.</p></div>
                )}
             </div>
           )}
@@ -602,42 +548,24 @@ const App: React.FC = () => {
               {(isDBOperation || loadingWorkflow) && (
                 <div className="absolute inset-0 bg-white/60 flex flex-col items-center justify-center z-20">
                   <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{loadingWorkflow ? 'AI Generating Procedure...' : 'Database Syncing...'}</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{loadingWorkflow ? 'AI Generating Procedure...' : 'Syncing Data...'}</span>
                 </div>
               )}
               <div className="flex justify-between items-start mb-10">
                 <div>
                   <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
-                    {modalMode === 'create' ? 'REGISTER NEW SITE' : modalMode === 'edit' ? 'MODIFY SITE DATA' : 'SITE PROFILE'}
+                    {modalMode === 'create' ? 'SITE ONBOARDING' : modalMode === 'edit' ? 'MODIFY TELEMETRY' : 'SITE DOSSIER'}
                   </span>
                   <div className="mt-2">
                     {modalMode === 'view' ? (
                       <h2 className="text-4xl font-black text-slate-900">{selectedSite.name}</h2>
                     ) : (
                       <div className="space-y-4 w-full">
-                        <div className="w-full">
-                          <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Site Name</label>
-                          <input 
-                            placeholder="e.g. Makati Central Hub"
-                            value={formData.name || ''} 
-                            onChange={e=>setFormData({...formData, name:e.target.value})} 
-                            className="text-4xl font-black text-slate-900 border-b-2 border-slate-100 focus:border-blue-500 outline-none w-full bg-transparent pb-2 transition-all"
-                          />
-                        </div>
-                        <div className="w-full">
-                          <label className="text-[10px] font-black text-slate-400 uppercase block mb-1">Site ID</label>
-                          <input 
-                            disabled={modalMode === 'edit'}
-                            placeholder="e.g. MNL-101"
-                            value={formData.id || ''} 
-                            onChange={e=>setFormData({...formData, id:e.target.value})} 
-                            className={`text-xl font-bold border-b border-slate-100 focus:border-blue-500 outline-none w-full bg-transparent pb-1 transition-all ${modalMode === 'edit' ? 'text-slate-400 cursor-not-allowed border-none' : 'text-slate-700'}`}
-                          />
-                        </div>
+                        <input placeholder="Site Name" value={formData.name || ''} onChange={e=>setFormData({...formData, name:e.target.value})} className="text-4xl font-black text-slate-900 border-b-2 border-slate-100 focus:border-blue-500 outline-none w-full bg-transparent pb-2" />
+                        <input disabled={modalMode === 'edit'} placeholder="Site ID" value={formData.id || ''} onChange={e=>setFormData({...formData, id:e.target.value})} className="text-xl font-bold border-b border-slate-100 focus:border-blue-500 outline-none w-full bg-transparent pb-1" />
                       </div>
                     )}
                   </div>
-                  {modalMode === 'view' && <div className="text-sm font-bold text-slate-400 mt-1">{selectedSite.id}</div>}
                 </div>
                 <button onClick={() => setSelectedSite(null)} className="p-3 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-colors"><X size={24}/></button>
               </div>
@@ -645,7 +573,7 @@ const App: React.FC = () => {
               <div className="space-y-12">
                 <div className="grid grid-cols-2 gap-6">
                   <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                    <div className="text-[10px] text-slate-400 font-black uppercase mb-2">Current Vendor</div>
+                    <div className="text-[10px] text-slate-400 font-black uppercase mb-2">Legacy Vendor</div>
                     <div className="font-bold text-lg">
                       {modalMode === 'view' ? selectedSite.currentVendor : (
                         <select className="bg-transparent font-bold w-full outline-none" value={formData.currentVendor} onChange={e=>setFormData({...formData, currentVendor: e.target.value as any})}>
@@ -656,7 +584,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                    <div className="text-[10px] text-slate-400 font-black uppercase mb-2">Risk Level</div>
+                    <div className="text-[10px] text-slate-400 font-black uppercase mb-2">Risk Factor</div>
                     <div className="font-bold text-lg">
                       {modalMode === 'view' ? selectedSite.riskLevel : (
                         <select className="bg-transparent font-bold w-full outline-none" value={formData.riskLevel} onChange={e=>setFormData({...formData, riskLevel: e.target.value as any})}>
@@ -679,7 +607,7 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100">
-                    <div className="text-[10px] text-slate-400 font-black uppercase mb-2">Project Status</div>
+                    <div className="text-[10px] text-slate-400 font-black uppercase mb-2">Status</div>
                     <div className="font-bold text-lg">
                       {modalMode === 'view' ? selectedSite.status : (
                         <select className="bg-transparent font-bold w-full outline-none" value={formData.status} onChange={e=>setFormData({...formData, status: e.target.value as any})}>
@@ -690,66 +618,27 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* GPS COORDINATES SECTION */}
-                <div className="space-y-6">
-                  <div className="flex items-center gap-2">
-                    <Navigation size={18} className="text-blue-600"/>
-                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Geospatial Data</h3>
-                  </div>
-                  <div className="grid grid-cols-2 gap-6">
-                    <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100">
-                      <div className="text-[10px] text-blue-400 font-black uppercase mb-2">Latitude</div>
-                      <div className="font-mono font-bold text-lg">
-                        {modalMode === 'view' ? selectedSite.coordinates.lat : (
-                          <input 
-                            type="number" 
-                            step="0.000001"
-                            className="bg-transparent font-bold w-full outline-none" 
-                            value={formData.coordinates?.lat ?? ''} 
-                            onChange={e=>setFormData({...formData, coordinates: { ...formData.coordinates, lat: parseFloat(e.target.value) } as any})} 
-                            placeholder="e.g. 14.5995"
-                          />
-                        )}
-                      </div>
-                    </div>
-                    <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100">
-                      <div className="text-[10px] text-blue-400 font-black uppercase mb-2">Longitude</div>
-                      <div className="font-mono font-bold text-lg">
-                        {modalMode === 'view' ? selectedSite.coordinates.lng : (
-                          <input 
-                            type="number" 
-                            step="0.000001"
-                            className="bg-transparent font-bold w-full outline-none" 
-                            value={formData.coordinates?.lng ?? ''} 
-                            onChange={e=>setFormData({...formData, coordinates: { ...formData.coordinates, lng: parseFloat(e.target.value) } as any})} 
-                            placeholder="e.g. 120.9842"
-                          />
-                        )}
-                      </div>
+                {modalMode === 'view' && (
+                  <div className="w-full relative shadow-sm rounded-3xl border border-slate-100 overflow-hidden">
+                    <SiteMap sites={[selectedSite]} onSiteClick={() => {}} mini={true} />
+                    <div className="absolute bottom-4 right-4 z-10">
+                      <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedSite.coordinates.lat},${selectedSite.coordinates.lng}`, '_blank')} className="px-4 py-2 bg-white/90 backdrop-blur-sm shadow-xl border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all flex items-center gap-2"><Navigation size={12}/> Open Field GPS</button>
                     </div>
                   </div>
-                  {modalMode === 'view' && (
-                    <div className="w-full relative shadow-sm rounded-3xl border border-slate-100 overflow-hidden">
-                      <SiteMap sites={[selectedSite]} onSiteClick={() => {}} mini={true} />
-                      <div className="absolute bottom-4 right-4 z-10">
-                        <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedSite.coordinates.lat},${selectedSite.coordinates.lng}`, '_blank')} className="px-4 py-2 bg-white/90 backdrop-blur-sm shadow-xl border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all flex items-center gap-2"><Navigation size={12}/> Launch Field GPS</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                )}
 
                 {modalMode === 'view' && isAdmin && (
                   <div className="bg-slate-900 rounded-3xl p-8 text-white relative shadow-xl">
-                    <div className="flex justify-between items-center mb-6"><h4 className="font-bold text-lg flex items-center gap-2"><ShieldCheck size={22} className="text-emerald-400"/> Technical Dossier</h4>{selectedSite.technicalInstructions && <span className="text-[9px] font-black uppercase text-emerald-400">DB Synched</span>}</div>
+                    <div className="flex justify-between items-center mb-6"><h4 className="font-bold text-lg flex items-center gap-2"><ShieldCheck size={22} className="text-emerald-400"/> Swap MOP</h4>{selectedSite.technicalInstructions && <span className="text-[9px] font-black uppercase text-emerald-400">Validated</span>}</div>
                     {selectedSite.technicalInstructions ? (
                       <div className="space-y-4">
                         {selectedSite.technicalInstructions.steps.map((s, i) => (<div key={i} className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5"><div className="text-blue-400 font-black text-xs">{i+1}.</div><div className="text-sm font-medium">{s.task}</div></div>))}
-                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="text-[10px] text-blue-400 font-black uppercase mt-4 flex items-center gap-1 hover:underline"><RefreshCw size={12}/> Rebuild Procedural Flow</button>
+                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="text-[10px] text-blue-400 font-black uppercase mt-4 flex items-center gap-1 hover:underline disabled:opacity-50" disabled={!isAiConfigured}><RefreshCw size={12}/> Re-synthesize MOP</button>
                       </div>
                     ) : (
                       <div className="text-center py-6">
-                        <p className="text-slate-500 text-sm mb-6">No dossier linked. Generate hardware-specific instructions via AI.</p>
-                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="w-full bg-blue-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all hover:bg-blue-500 shadow-lg shadow-blue-600/20"><BrainCircuit size={18}/> Synthesize Tech Plan</button>
+                        <p className="text-slate-500 text-sm mb-6">Procedural data not yet synthesized.</p>
+                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} disabled={!isAiConfigured} className="w-full bg-blue-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all hover:bg-blue-500 shadow-lg disabled:opacity-50"><BrainCircuit size={18}/> Generate Procedure</button>
                       </div>
                     )}
                   </div>
@@ -757,9 +646,9 @@ const App: React.FC = () => {
 
                 <div className="flex gap-4 pb-10">
                    {modalMode === 'view' ? (
-                     <>{isAdmin && <button onClick={() => { setFormData(selectedSite); setModalMode('edit'); }} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20">Edit Site Details</button>}<button onClick={() => alert("Generating Ops PDF...")} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all">Print Ops Sheet</button></>
+                     <>{isAdmin && <button onClick={() => { setFormData(selectedSite); setModalMode('edit'); }} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all shadow-lg">Modify Dossier</button>}<button onClick={() => alert("Printing Procedure...")} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all">Print PDF</button></>
                    ) : (
-                     <><button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20">Save Cluster Changes</button><button onClick={() => setModalMode('view')} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all">Cancel Entry</button></>
+                     <><button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all shadow-lg">Commit to Repository</button><button onClick={() => setModalMode('view')} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all">Cancel</button></>
                    )}
                 </div>
               </div>
