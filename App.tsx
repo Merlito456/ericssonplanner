@@ -9,7 +9,7 @@ import {
   Terminal, X, Calendar, PlayCircle, Clock, ListTodo, TrendingUp, 
   Zap, Loader2, CheckCircle, FileText, Plus, Trash2, Edit2, Save, 
   History, MessageSquare, Radio, Server, ShieldCheck, RefreshCw, LogOut, Lock, User as UserIcon,
-  MapPin, Navigation
+  MapPin, Navigation, Info
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
@@ -131,6 +131,7 @@ const App: React.FC = () => {
   
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [loadingAi, setLoadingAi] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
@@ -199,12 +200,14 @@ const App: React.FC = () => {
       return;
     }
     setLoadingAi(true);
+    setAiError(null);
     try {
       const result = await geminiService.analyzeProjectStatus(sites);
       setAiAnalysis(result);
       setActiveTab('ai');
-    } catch (error) {
+    } catch (error: any) {
       console.error("AI Analysis failed", error);
+      setAiError(error.message || "Failed to communicate with the AI Strategist. Please check your API connectivity.");
     } finally {
       setLoadingAi(false);
     }
@@ -217,6 +220,7 @@ const App: React.FC = () => {
       return;
     }
     setScheduling(true);
+    setAiError(null);
     try {
       const schedule = await geminiService.generateDeploymentSchedule(sites);
       const updatedSites = sites.map(s => {
@@ -229,8 +233,9 @@ const App: React.FC = () => {
       for (const site of updatedSites) await dbService.upsertSite(site);
       setSites(updatedSites);
       alert("AI Scheduling Complete. Database synced.");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Scheduling failed", error);
+      setAiError(error.message || "Logistics AI encountered an error while batching dates.");
     } finally {
       setScheduling(false);
     }
@@ -240,6 +245,7 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     setLoadingWorkflow(true);
     setIsDBOperation(true);
+    setAiError(null);
     try {
       const plan = await geminiService.getSwapPlan(site);
       const technicalInstructions = { 
@@ -251,8 +257,9 @@ const App: React.FC = () => {
       await dbService.upsertSite(updatedSite);
       setSites(prev => prev.map(s => s.id === site.id ? updatedSite : s));
       setSelectedSite(updatedSite);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Workflow Generation failed", error);
+      setAiError(error.message || "Engineering AI failed to generate technical MOP.");
     } finally {
       setLoadingWorkflow(false);
       setIsDBOperation(false);
@@ -284,7 +291,6 @@ const App: React.FC = () => {
       alert("Site ID and Site Name are mandatory.");
       return;
     }
-    // Validation for lat/lng
     if (formData.coordinates?.lat === undefined || formData.coordinates?.lng === undefined) {
       alert("GPS Coordinates (Latitude and Longitude) are mandatory.");
       return;
@@ -335,6 +341,20 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-['Inter']">
+      {/* GLOBAL AI ERROR NOTIFICATION */}
+      {aiError && (
+        <div className="fixed bottom-10 right-10 z-[200] w-96 bg-white border border-red-100 rounded-3xl shadow-2xl p-6 animate-in slide-in-from-bottom duration-300">
+          <div className="flex items-start gap-4">
+            <div className="bg-red-50 p-2 rounded-xl text-red-500 shrink-0"><AlertTriangle size={24}/></div>
+            <div>
+              <h4 className="font-black text-slate-900 text-sm uppercase tracking-widest mb-1">AI System Error</h4>
+              <p className="text-xs text-slate-500 leading-relaxed mb-4">{aiError}</p>
+              <button onClick={() => setAiError(null)} className="text-[10px] font-black uppercase text-blue-600 hover:text-blue-700 tracking-widest">Dismiss Report</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 shrink-0">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xl shadow-lg shadow-blue-900/40">E</div>
@@ -374,7 +394,7 @@ const App: React.FC = () => {
             <input type="text" placeholder="Search by Site ID or Name..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
           <div className="flex items-center gap-4">
-             {isAdmin && <button onClick={async () => { if(window.confirm('Purge DB?')) { await dbService.clearDatabase(); setSites([]); } }} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><RefreshCw size={18}/></button>}
+             {isAdmin && <button onClick={async () => { if(window.confirm('Purge DB?')) { await dbService.clearDatabase(); setSites([]); } }} className="p-2 text-slate-400 hover:text-red-500 transition-colors" title="Purge Records"><RefreshCw size={18}/></button>}
              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-100 rounded-lg">
                 <span className="text-[10px] font-black text-slate-500 uppercase tracking-tighter">Active Project</span>
              </div>
@@ -441,7 +461,7 @@ const App: React.FC = () => {
                   <div><h2 className="text-2xl font-bold text-slate-900">Site Repository</h2><p className="text-slate-500 text-sm mt-1">PostgreSQL Cluster Records</p></div>
                   <div className="flex gap-3">
                     {isAdmin && <button onClick={() => { setModalMode('create'); setFormData({id: `SITE-${Math.floor(Math.random()*900)+100}`, name: '', region: 'NCR', currentVendor: Vendor.HUAWEI, status: SiteStatus.PENDING, equipment: [], riskLevel: 'Low', coordinates: {lat: 14.59, lng: 120.98}, tasks: DEFAULT_TASKS.map(t=>({...t, isCompleted: false}))}); setSelectedSite({} as Site); }} className="bg-blue-600 text-white px-4 py-2 rounded-xl flex items-center gap-2 hover:bg-blue-700 shadow-lg shadow-blue-500/20 font-bold text-sm"><Plus size={18}/> New Entry</button>}
-                    <button onClick={() => alert("Exporting...")} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2"><Download size={18}/> Export CSV</button>
+                    <button onClick={() => alert("Exporting CSV...")} className="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-xl font-bold text-sm flex items-center gap-2 hover:bg-slate-50"><Download size={18}/> Export CSV</button>
                   </div>
                </div>
                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
@@ -471,6 +491,9 @@ const App: React.FC = () => {
                      ))}
                    </tbody>
                  </table>
+                 {filteredSites.length === 0 && (
+                   <div className="p-20 text-center"><p className="text-slate-400 text-sm font-medium italic">No sites match the current telemetry filter.</p></div>
+                 )}
                </div>
             </div>
           )}
@@ -478,16 +501,20 @@ const App: React.FC = () => {
           {activeTab === 'plan' && (
             <div className="animate-in fade-in duration-500">
                <div className="flex justify-between items-center mb-8">
-                  <div><h2 className="text-2xl font-bold text-slate-900">Logistics Planning</h2><p className="text-slate-500 text-sm mt-1">Optimized scheduling logic</p></div>
-                  {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20">{scheduling ? <Loader2 className="animate-spin"/> : <Calendar size={18}/>} Schedule Batch</button>}
+                  <div><h2 className="text-2xl font-bold text-slate-900">Logistics Planning</h2><p className="text-slate-500 text-sm mt-1">Optimized scheduling logic via Gemini 3 Flash</p></div>
+                  {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg shadow-slate-900/20 hover:bg-slate-800 transition-all disabled:opacity-50">{scheduling ? <Loader2 className="animate-spin" size={18}/> : <Calendar size={18}/>} {scheduling ? 'Calculating Batch...' : 'Schedule Batch'}</button>}
                </div>
                <div className="space-y-4">
-                 {sites.filter(s => s.status !== SiteStatus.COMPLETED).map(site => (
-                   <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group">
-                     <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region} • <span className="font-mono text-[9px]">{site.coordinates.lat.toFixed(4)}, {site.coordinates.lng.toFixed(4)}</span></div></div></div>
-                     <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Target Date</div><div className="text-sm font-bold text-slate-700">{site.scheduledDate || 'TBD'}</div></div><button onClick={() => { setSelectedSite(site); setModalMode('view'); }} className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
-                   </div>
-                 ))}
+                 {sites.filter(s => s.status !== SiteStatus.COMPLETED).length === 0 ? (
+                    <div className="p-20 bg-white border border-dashed border-slate-200 rounded-3xl text-center"><p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">All sites deployment complete or none listed.</p></div>
+                 ) : (
+                   sites.filter(s => s.status !== SiteStatus.COMPLETED).map(site => (
+                     <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group">
+                       <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region} • <span className="font-mono text-[9px]">{site.coordinates.lat.toFixed(4)}, {site.coordinates.lng.toFixed(4)}</span></div></div></div>
+                       <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Target Date</div><div className="text-sm font-bold text-slate-700">{site.scheduledDate || 'TBD'}</div></div><button onClick={() => { setSelectedSite(site); setModalMode('view'); }} className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
+                     </div>
+                   ))
+                 )}
                </div>
             </div>
           )}
@@ -496,20 +523,24 @@ const App: React.FC = () => {
             <div className="animate-in fade-in duration-500">
                <div className="mb-8"><h2 className="text-2xl font-bold text-slate-900">Live Execution</h2><p className="text-slate-500 text-sm mt-1">Field-level task synchronization</p></div>
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {sites.filter(s => s.status === SiteStatus.IN_PROGRESS).map(site => (
-                    <div key={site.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden relative">
-                      {isDBOperation && <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10"><Loader2 className="animate-spin text-blue-600" /></div>}
-                      <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{site.id}</div><h3 className="text-xl font-bold mt-1">{site.name}</h3><div className="text-[9px] text-slate-400 font-mono">{site.coordinates.lat}, {site.coordinates.lng}</div></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
-                      <div className="p-6 space-y-3">
-                         {site.tasks?.map(task => (
-                           <div key={task.id} onClick={() => handleTaskToggle(site.id, task.id)} className={`p-4 rounded-2xl flex items-center justify-between cursor-pointer border ${task.isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-100'}`}>
-                             <div className="flex items-center gap-3"><div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${task.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>{task.isCompleted && <CheckCircle size={14}/>}</div><span className={`text-sm font-medium ${task.isCompleted ? 'line-through opacity-60' : ''}`}>{task.label}</span></div>
-                             <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase bg-slate-200 text-slate-500">{task.assignedRole}</span>
-                           </div>
-                         ))}
+                  {sites.filter(s => s.status === SiteStatus.IN_PROGRESS).length === 0 ? (
+                    <div className="lg:col-span-2 p-20 bg-white border border-dashed border-slate-200 rounded-3xl text-center"><p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No active field operations found.</p></div>
+                  ) : (
+                    sites.filter(s => s.status === SiteStatus.IN_PROGRESS).map(site => (
+                      <div key={site.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden relative shadow-sm">
+                        {isDBOperation && <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10"><Loader2 className="animate-spin text-blue-600" /></div>}
+                        <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{site.id}</div><h3 className="text-xl font-bold mt-1">{site.name}</h3><div className="text-[9px] text-slate-400 font-mono">{site.coordinates.lat}, {site.coordinates.lng}</div></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
+                        <div className="p-6 space-y-3">
+                           {site.tasks?.map(task => (
+                             <div key={task.id} onClick={() => handleTaskToggle(site.id, task.id)} className={`p-4 rounded-2xl flex items-center justify-between cursor-pointer border ${task.isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-100'}`}>
+                               <div className="flex items-center gap-3"><div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${task.isCompleted ? 'bg-emerald-500 border-emerald-500 text-white' : 'border-slate-300'}`}>{task.isCompleted && <CheckCircle size={14}/>}</div><span className={`text-sm font-medium ${task.isCompleted ? 'line-through opacity-60' : ''}`}>{task.label}</span></div>
+                               <span className="text-[10px] font-bold px-2 py-1 rounded-full uppercase bg-slate-200 text-slate-500">{task.assignedRole}</span>
+                             </div>
+                           ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                </div>
             </div>
           )}
@@ -519,14 +550,46 @@ const App: React.FC = () => {
           {activeTab === 'ai' && isAdmin && (
             <div className="animate-in slide-in-from-right-4 duration-500">
                <div className="mb-8 flex items-center justify-between">
-                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><BrainCircuit className="text-blue-600" size={28} /> AI Strategist</h2><p className="text-slate-500 text-sm mt-1">Admin-only tactical insights via Gemini 3</p></div>
-                  <button onClick={handleRunAiAnalysis} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />}Recalculate</button>
+                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><BrainCircuit className="text-blue-600" size={28} /> AI Strategist</h2><p className="text-slate-500 text-sm mt-1">Admin-only tactical insights via Gemini 3 Flash</p></div>
+                  <button onClick={handleRunAiAnalysis} disabled={loadingAi} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} {loadingAi ? 'Synthesizing Data...' : 'Recalculate Strategy'}</button>
                </div>
-               {aiAnalysis && (
-                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl"><h4 className="font-bold text-lg text-blue-400 mb-6 flex items-center gap-2"><Terminal size={20}/> Insights</h4><ul className="space-y-6">{aiAnalysis.strategicInsights.map((insight: string, idx: number) => (<li key={idx} className="flex gap-4"><div className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-blue-500"></div><p className="text-slate-300 text-sm leading-relaxed">{insight}</p></li>))}</ul></div>
-                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl text-white flex flex-col items-center justify-center text-center"><div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4">Project Health</div><div className="text-7xl font-black mb-4">{aiAnalysis.projectHealth}</div><div className="w-full bg-white/20 h-2 rounded-full"><div className="bg-white h-full" style={{width: aiAnalysis.projectHealth}}></div></div></div>
+               {loadingAi && (
+                 <div className="bg-white border border-slate-200 rounded-3xl p-20 text-center">
+                    <Loader2 className="animate-spin text-blue-600 mx-auto mb-6" size={48} />
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Engaging AI Clusters</h3>
+                    <p className="text-sm text-slate-500">Analyzing nationwide site inventory for logistics and hardware dependencies...</p>
                  </div>
+               )}
+               {aiAnalysis && !loadingAi && (
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl">
+                      <h4 className="font-bold text-lg text-blue-400 mb-6 flex items-center gap-2"><Terminal size={20}/> Deployment Insights</h4>
+                      <ul className="space-y-6">
+                        {aiAnalysis.strategicInsights.map((insight: string, idx: number) => (
+                          <li key={idx} className="flex gap-4"><div className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-blue-500"></div><p className="text-slate-300 text-sm leading-relaxed">{insight}</p></li>
+                        ))}
+                      </ul>
+                      <div className="mt-10 pt-8 border-t border-white/10">
+                         <h5 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4">Risk Management</h5>
+                         <div className="space-y-3">
+                           {aiAnalysis.riskMitigation?.map((risk: string, i: number) => (
+                             <div key={i} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl text-xs text-slate-400 border border-white/5"><Info size={14} className="text-amber-500"/> {risk}</div>
+                           ))}
+                         </div>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl text-white flex flex-col items-center justify-center text-center shadow-2xl shadow-blue-500/20">
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4">Project Health Index</div>
+                      <div className="text-8xl font-black mb-4 tracking-tighter">{aiAnalysis.projectHealth}</div>
+                      <div className="w-full max-w-xs bg-white/20 h-3 rounded-full overflow-hidden">
+                        <div className="bg-white h-full transition-all duration-1000" style={{width: aiAnalysis.projectHealth}}></div>
+                      </div>
+                      <p className="text-[10px] text-blue-100 font-bold uppercase tracking-widest mt-6">Calculated across {sites.length} Active Nodes</p>
+                    </div>
+                 </div>
+               )}
+               {!aiAnalysis && !loadingAi && (
+                 <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-3xl p-20 text-center"><p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Strategic report pending synthesis.</p></div>
                )}
             </div>
           )}
@@ -536,7 +599,12 @@ const App: React.FC = () => {
           <div className="fixed inset-0 z-[100] flex items-center justify-end">
             <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedSite(null)}></div>
             <div className="w-full max-w-2xl h-full bg-white shadow-2xl animate-in slide-in-from-right duration-500 overflow-y-auto relative z-10 p-10">
-              {(isDBOperation || loadingWorkflow) && <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-20"><Loader2 className="animate-spin text-blue-600" size={48} /></div>}
+              {(isDBOperation || loadingWorkflow) && (
+                <div className="absolute inset-0 bg-white/60 flex flex-col items-center justify-center z-20">
+                  <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{loadingWorkflow ? 'AI Generating Procedure...' : 'Database Syncing...'}</span>
+                </div>
+              )}
               <div className="flex justify-between items-start mb-10">
                 <div>
                   <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">
@@ -571,7 +639,7 @@ const App: React.FC = () => {
                   </div>
                   {modalMode === 'view' && <div className="text-sm font-bold text-slate-400 mt-1">{selectedSite.id}</div>}
                 </div>
-                <button onClick={() => setSelectedSite(null)} className="p-3 bg-slate-100 rounded-2xl"><X size={24}/></button>
+                <button onClick={() => setSelectedSite(null)} className="p-3 bg-slate-100 rounded-2xl hover:bg-slate-200 transition-colors"><X size={24}/></button>
               </div>
 
               <div className="space-y-12">
@@ -661,34 +729,37 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   {modalMode === 'view' && (
-                    <div className="w-full relative">
+                    <div className="w-full relative shadow-sm rounded-3xl border border-slate-100 overflow-hidden">
                       <SiteMap sites={[selectedSite]} onSiteClick={() => {}} mini={true} />
                       <div className="absolute bottom-4 right-4 z-10">
-                        <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedSite.coordinates.lat},${selectedSite.coordinates.lng}`, '_blank')} className="px-4 py-2 bg-white/90 backdrop-blur-sm shadow-xl border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all">Launch Field GPS</button>
+                        <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedSite.coordinates.lat},${selectedSite.coordinates.lng}`, '_blank')} className="px-4 py-2 bg-white/90 backdrop-blur-sm shadow-xl border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all flex items-center gap-2"><Navigation size={12}/> Launch Field GPS</button>
                       </div>
                     </div>
                   )}
                 </div>
 
                 {modalMode === 'view' && isAdmin && (
-                  <div className="bg-slate-900 rounded-3xl p-8 text-white relative">
+                  <div className="bg-slate-900 rounded-3xl p-8 text-white relative shadow-xl">
                     <div className="flex justify-between items-center mb-6"><h4 className="font-bold text-lg flex items-center gap-2"><ShieldCheck size={22} className="text-emerald-400"/> Technical Dossier</h4>{selectedSite.technicalInstructions && <span className="text-[9px] font-black uppercase text-emerald-400">DB Synched</span>}</div>
                     {selectedSite.technicalInstructions ? (
                       <div className="space-y-4">
                         {selectedSite.technicalInstructions.steps.map((s, i) => (<div key={i} className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5"><div className="text-blue-400 font-black text-xs">{i+1}.</div><div className="text-sm font-medium">{s.task}</div></div>))}
-                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="text-[10px] text-blue-400 font-black uppercase mt-4 flex items-center gap-1"><RefreshCw size={12}/> Rebuild Flow</button>
+                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="text-[10px] text-blue-400 font-black uppercase mt-4 flex items-center gap-1 hover:underline"><RefreshCw size={12}/> Rebuild Procedural Flow</button>
                       </div>
                     ) : (
-                      <div className="text-center py-6"><p className="text-slate-500 text-sm mb-6">No dossier linked. Generate hardware-specific instructions now.</p><button onClick={() => handleGenerateWorkflow(selectedSite!)} className="w-full bg-blue-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all hover:bg-blue-500"><BrainCircuit size={18}/> Synthesize & Sync</button></div>
+                      <div className="text-center py-6">
+                        <p className="text-slate-500 text-sm mb-6">No dossier linked. Generate hardware-specific instructions via AI.</p>
+                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="w-full bg-blue-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all hover:bg-blue-500 shadow-lg shadow-blue-600/20"><BrainCircuit size={18}/> Synthesize Tech Plan</button>
+                      </div>
                     )}
                   </div>
                 )}
 
                 <div className="flex gap-4 pb-10">
                    {modalMode === 'view' ? (
-                     <>{isAdmin && <button onClick={() => { setFormData(selectedSite); setModalMode('edit'); }} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all">Edit Site Details</button>}<button onClick={() => alert("Printing...")} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all">Print Ops Sheet</button></>
+                     <>{isAdmin && <button onClick={() => { setFormData(selectedSite); setModalMode('edit'); }} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20">Edit Site Details</button>}<button onClick={() => alert("Generating Ops PDF...")} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all">Print Ops Sheet</button></>
                    ) : (
-                     <><button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all">Save Changes</button><button onClick={() => setModalMode('view')} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all">Cancel</button></>
+                     <><button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-500/20">Save Cluster Changes</button><button onClick={() => setModalMode('view')} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all">Cancel Entry</button></>
                    )}
                 </div>
               </div>
