@@ -3,15 +3,6 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Site } from "../types.ts";
 
 export class GeminiService {
-  // Utility to get a fresh AI instance with the current API key
-  private getClient(): GoogleGenAI {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      throw new Error("Gemini API Key is missing. Please ensure it is configured in your environment.");
-    }
-    return new GoogleGenAI({ apiKey });
-  }
-
   // Utility to safely parse JSON from model responses
   private safeParse(text: string | undefined): any {
     if (!text) return null;
@@ -26,7 +17,9 @@ export class GeminiService {
   }
 
   async analyzeProjectStatus(sites: Site[]) {
-    const ai = this.getClient();
+    // Create new instance as per guidelines to ensure it picks up the latest environment variables
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
     const summary = sites.map(s => ({
       id: s.id,
       vendor: s.currentVendor,
@@ -60,7 +53,8 @@ export class GeminiService {
   }
 
   async generateDeploymentSchedule(sites: Site[]) {
-    const ai = this.getClient();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Create an optimized 4-week deployment schedule for the following sites. Group by region and minimize travel time. Use ISO dates starting from today.
@@ -86,7 +80,8 @@ export class GeminiService {
   }
 
   async getSwapPlan(site: Site) {
-    const ai = this.getClient();
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Create a detailed technical swap plan for site ${site.id} (${site.name}). 
