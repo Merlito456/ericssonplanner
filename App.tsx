@@ -15,8 +15,6 @@ import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, Ri
 import SiteMap from './components/SiteMap.tsx';
 import { strategyEngine } from './services/strategyEngine.ts';
 import { dbService } from './services/db.ts';
-// Fix: Import GeminiService to handle AI features
-import { geminiService } from './services/gemini.ts';
 
 const COLORS = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#94a3b8'];
 
@@ -56,7 +54,6 @@ const StatusCard: React.FC<{icon: React.ReactNode, label: string, value: string,
   </div>
 );
 
-// Fix: Added missing AuthPage component to handle user authentication
 const AuthPage: React.FC<{ onAuth: (user: User) => Promise<void> }> = ({ onAuth }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
@@ -599,8 +596,8 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     setScheduling(true);
     try {
-      // Use geminiService for intelligent batch planning
-      const schedule = await geminiService.generateDeploymentSchedule(sites);
+      // Use strategyEngine for offline intelligent batch planning
+      const schedule = await strategyEngine.generateDeploymentSchedule(sites);
       const updatedSites = await Promise.all(sites.map(async s => {
         const item = schedule.find((sch: any) => sch.siteId === s.id);
         if (item) {
@@ -624,10 +621,10 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     setLoadingAi(true);
     try {
-      // Use geminiService for analysis
-      const result = await geminiService.analyzeProjectStatus(sites);
+      // Use strategyEngine for offline project analysis
+      const result = await strategyEngine.analyzeProjectStatus(sites);
       setAiAnalysis(result);
-      await logActivity('AI Synthesis Triggered', 'Advanced cognitive core executed nationwide rollout health analysis.', 'system');
+      await logActivity('Nodal Analysis Triggered', 'Strategy engine executed nationwide rollout health analysis.', 'system');
       setActiveTab('ai');
     } catch (error: any) {
       console.error(error);
@@ -637,7 +634,6 @@ const App: React.FC = () => {
     }
   };
 
-  // Fix: Render AuthPage if no user is authenticated
   if (!currentUser) return <AuthPage onAuth={async u => { 
     setCurrentUser(u); 
     await dbService.addLog({
@@ -671,21 +667,7 @@ const App: React.FC = () => {
           <NavItem active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} icon={<ClipboardList size={18}/>} label="Activity Logs" />
           {isAdmin && <NavItem active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<Cpu size={18}/>} label="Cognitive Core" />}
         </nav>
-        {/* Fix: Added Connect AI button to handle API key selection */}
         <div className="p-4 space-y-2 border-t border-slate-800">
-          <button 
-            onClick={async () => {
-              if ((window as any).aistudio) {
-                await (window as any).aistudio.openSelectKey();
-              } else {
-                alert("AI Studio environment not detected.");
-              }
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600/10 text-blue-400 border border-blue-600/20 hover:bg-blue-600/20 transition-all group"
-          >
-            <Zap size={18} className="group-hover:text-blue-300 transition-colors" />
-            <span className="text-[10px] font-black uppercase tracking-widest">Connect AI Core</span>
-          </button>
           <button onClick={async () => { 
             await logActivity('User Logout', 'System session terminated by user.', 'auth');
             dbService.logout(); 
@@ -878,7 +860,7 @@ const App: React.FC = () => {
                {loadingAi && (
                  <div className="bg-white border border-slate-200 rounded-3xl p-20 text-center">
                     <Loader2 className="animate-spin text-blue-600 mx-auto mb-6" size={48} />
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">Engaging Cognitive Logic Engine...</h3>
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Engaging Local Logic Engine...</h3>
                     <p className="text-sm text-slate-500">Calculating regional risk density and hardware dependency chains...</p>
                  </div>
                )}
