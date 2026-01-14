@@ -1,5 +1,5 @@
 
-import { Site, User, UserRole, Equipment, DeploymentTask, Vendor, SiteStatus, RiskLevel } from "../types.ts";
+import { Site, User, UserRole, Equipment, DeploymentTask, Vendor, SiteStatus, RiskLevel, SiteMilestones } from "../types.ts";
 
 const SITES_KEY = 'pg_sites_v1';
 const EQUIP_KEY = 'pg_equipment_v1';
@@ -12,7 +12,6 @@ export class DatabaseService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  // --- Relational Storage Mock ---
   async getSites(): Promise<Site[]> {
     await this.delay();
     const sitesRaw = localStorage.getItem(SITES_KEY);
@@ -23,7 +22,6 @@ export class DatabaseService {
     const equipment: Equipment[] = equipRaw ? JSON.parse(equipRaw) : [];
     const tasks: DeploymentTask[] = tasksRaw ? JSON.parse(tasksRaw) : [];
 
-    // Aggregate for frontend usage
     return sites.map(s => ({
       ...s,
       equipment: equipment.filter(e => e.site_id === s.id),
@@ -36,31 +34,22 @@ export class DatabaseService {
     const sitesRaw = localStorage.getItem(SITES_KEY);
     let sites: Site[] = sitesRaw ? JSON.parse(sitesRaw) : [];
 
-    // Separate relational data
     const { equipment, tasks, ...siteData } = site;
-    
-    // Update main site table
     const index = sites.findIndex(s => s.id === site.id);
-    const updatedSite = { 
-      ...siteData, 
-      last_update: new Date().toISOString() 
-    } as Site;
+    const updatedSite = { ...siteData, last_update: new Date().toISOString() } as Site;
 
     if (index >= 0) sites[index] = updatedSite;
     else sites.push(updatedSite);
 
     localStorage.setItem(SITES_KEY, JSON.stringify(sites));
 
-    // Update equipment table
     if (equipment) {
       const allEquipRaw = localStorage.getItem(EQUIP_KEY);
       let allEquip: Equipment[] = allEquipRaw ? JSON.parse(allEquipRaw) : [];
-      // Replace equipment for this site
       allEquip = allEquip.filter(e => e.site_id !== site.id).concat(equipment);
       localStorage.setItem(EQUIP_KEY, JSON.stringify(allEquip));
     }
 
-    // Update tasks table
     if (tasks) {
       const allTasksRaw = localStorage.getItem(TASKS_KEY);
       let allTasks: DeploymentTask[] = allTasksRaw ? JSON.parse(allTasksRaw) : [];
@@ -75,12 +64,6 @@ export class DatabaseService {
     if (!sitesRaw) return;
     const sites: Site[] = JSON.parse(sitesRaw);
     localStorage.setItem(SITES_KEY, JSON.stringify(sites.filter(s => s.id !== id)));
-    
-    // Cascade delete equipment and tasks
-    const equip = JSON.parse(localStorage.getItem(EQUIP_KEY) || '[]');
-    localStorage.setItem(EQUIP_KEY, JSON.stringify(equip.filter((e: Equipment) => e.site_id !== id)));
-    const tasks = JSON.parse(localStorage.getItem(TASKS_KEY) || '[]');
-    localStorage.setItem(TASKS_KEY, JSON.stringify(tasks.filter((t: DeploymentTask) => t.site_id !== id)));
   }
 
   private seedSites(): Site[] {
@@ -105,15 +88,31 @@ export class DatabaseService {
           completion_report: { plan: '2024-06-25', actual: '' },
           site_close: { plan: '2024-06-30', actual: '' },
         }
+      },
+      {
+        id: 'CEB-GLOBE-042',
+        name: 'Cebu IT Park Node',
+        region: 'Visayas',
+        lat: 10.3302,
+        lng: 123.9067,
+        current_vendor: Vendor.NOKIA,
+        target_vendor: Vendor.ERICSSON,
+        status: SiteStatus.PENDING,
+        risk_level: RiskLevel.Medium,
+        progress: 0,
+        last_update: new Date().toISOString(),
+        milestones: {
+          survey: { plan: '2024-06-10', actual: '' },
+          survey_report: { plan: '2024-06-12', actual: '' },
+          installation: { plan: '2024-06-20', actual: '' },
+          integration: { plan: '2024-06-25', actual: '' },
+          completion_report: { plan: '2024-06-28', actual: '' },
+          site_close: { plan: '2024-06-30', actual: '' },
+        }
       }
     ];
     localStorage.setItem(SITES_KEY, JSON.stringify(seeds));
     return seeds;
-  }
-
-  async checkConnection(): Promise<boolean> {
-    await this.delay(100);
-    return true;
   }
 
   async login(email: string, password: string): Promise<User> {
@@ -128,16 +127,8 @@ export class DatabaseService {
   async register(name: string, email: string, password: string): Promise<User> {
     await this.delay(600);
     const users = this.getUsers();
-    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-      throw new Error("User with this email already exists.");
-    }
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
-      name,
-      email,
-      role: UserRole.User,
-      password
-    };
+    if (users.some(u => u.email.toLowerCase() === email.toLowerCase())) throw new Error("User exists.");
+    const newUser: User = { id: Math.random().toString(36).substr(2, 9), name, email, role: UserRole.User, password };
     users.push(newUser);
     localStorage.setItem(USERS_KEY, JSON.stringify(users));
     localStorage.setItem(SESSION_KEY, JSON.stringify(newUser));
@@ -158,12 +149,6 @@ export class DatabaseService {
       localStorage.setItem(USERS_KEY, JSON.stringify(users));
     }
     return users;
-  }
-
-  async clearDatabase() {
-    localStorage.removeItem(SITES_KEY);
-    localStorage.removeItem(EQUIP_KEY);
-    localStorage.removeItem(TASKS_KEY);
   }
 }
 
