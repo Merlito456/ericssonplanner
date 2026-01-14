@@ -9,7 +9,7 @@ import {
   Terminal, X, Calendar, PlayCircle, Clock, ListTodo, TrendingUp, 
   Zap, Loader2, CheckCircle, FileText, Plus, Trash2, Edit2, Save, 
   History, MessageSquare, Radio, Server, ShieldCheck, RefreshCw, LogOut, Lock, User as UserIcon,
-  MapPin, Navigation, Info, Wifi, WifiOff, Cpu
+  MapPin, Navigation, Info, Wifi, WifiOff, Cpu, Database as DbIcon
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
@@ -116,6 +116,7 @@ const App: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const [isDBOperation, setIsDBOperation] = useState(false);
+  const [dbConnected, setDbConnected] = useState(false);
 
   useEffect(() => {
     const init = async () => {
@@ -125,6 +126,8 @@ const App: React.FC = () => {
           setCurrentUser(user);
           const data = await dbService.getSites();
           setSites(data);
+          const connected = await dbService.checkConnection();
+          setDbConnected(connected);
         }
       } catch (error) {
         console.error("Initialization Error:", error);
@@ -310,18 +313,27 @@ const App: React.FC = () => {
           {isAdmin && <NavItem active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<Cpu size={18}/>} label="Edge AI" />}
         </nav>
 
-        <div className="p-4 border-t border-slate-800 space-y-4">
-          <div className="w-full px-4 py-3 rounded-xl border bg-emerald-500/5 border-emerald-500/20 text-left">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <ShieldCheck className="text-emerald-400" size={14}/>
-                <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
-              </div>
-              <div>
-                <p className="text-[9px] font-black uppercase tracking-widest text-emerald-400">Edge Intelligence</p>
-                <p className="text-[8px] text-slate-500 mt-0.5">Operational (Offline)</p>
-              </div>
-            </div>
+        <div className="p-4 border-t border-slate-800 space-y-3">
+          {/* SYSTEM STATUS PANEL */}
+          <div className="bg-slate-800/50 rounded-2xl p-4 border border-slate-700/50">
+             <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest mb-3">System Health</div>
+             <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                      <ShieldCheck className="text-emerald-400 shrink-0" size={12}/>
+                      <span className="text-[9px] font-bold text-slate-300">Edge Intelligence</span>
+                   </div>
+                   <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></div>
+                </div>
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                      <DbIcon className={dbConnected ? "text-emerald-400 shrink-0" : "text-red-400 shrink-0"} size={12}/>
+                      <span className="text-[9px] font-bold text-slate-300">Nodal Database</span>
+                   </div>
+                   <div className={`w-1.5 h-1.5 rounded-full ${dbConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></div>
+                </div>
+             </div>
+             {dbConnected && <div className="mt-3 pt-3 border-t border-slate-700/50 text-[8px] text-slate-500 uppercase font-black tracking-tighter flex justify-between"><span>Supabase Cluster</span><span>Active</span></div>}
           </div>
 
           <div className="px-4 py-3 bg-slate-800/40 rounded-xl flex items-center gap-3">
@@ -339,10 +351,10 @@ const App: React.FC = () => {
             <input type="text" placeholder="Search telemetry..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
           <div className="flex items-center gap-4">
-             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest">
-                <WifiOff size={14}/> Field Mode
+             <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-emerald-100">
+                <Wifi size={14}/> Connected
              </div>
-             {isAdmin && <button onClick={async () => { if(window.confirm('Purge local cache?')) { await dbService.clearDatabase(); setSites([]); } }} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><RefreshCw size={18}/></button>}
+             {isAdmin && <button onClick={async () => { if(window.confirm('Purge local cache?')) { await dbService.clearDatabase(); const data = await dbService.getSites(); setSites(data); } }} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><RefreshCw size={18}/></button>}
           </div>
         </header>
 
