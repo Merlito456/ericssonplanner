@@ -61,7 +61,6 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
       }
 
       // CRITICAL: Leaflet needs to know the container size after it's rendered in the DOM.
-      // Small timeout ensures the browser has painted the container and calculated its height/width.
       setTimeout(() => {
         if (mapRef.current) {
           mapRef.current.invalidateSize();
@@ -77,52 +76,64 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
 
       validSites.forEach(site => {
         const color = getStatusColor(site.status);
-        const iconSize = mini ? 10 : 14;
+        const dotSize = mini ? 8 : 12;
         
+        // Custom HTML for the icon including Site ID and Name
+        const iconHtml = `
+          <div style="display: flex; flex-direction: column; align-items: center; pointer-events: none;">
+            <div style="background-color: ${color}; width: ${dotSize}px; height: ${dotSize}px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.2); margin-bottom: 2px;"></div>
+            ${!mini ? `
+              <div style="
+                white-space: nowrap; 
+                background: rgba(255, 255, 255, 0.95); 
+                padding: 1px 4px; 
+                border-radius: 4px; 
+                border: 1px solid #e2e8f0; 
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0px;
+              ">
+                <span style="color: #2563eb; font-weight: 900; font-size: 8px; text-transform: uppercase; line-height: 1;">${site.id}</span>
+                <span style="color: #475569; font-weight: 600; font-size: 8px; line-height: 1.2;">${site.name}</span>
+              </div>
+            ` : ''}
+          </div>
+        `;
+
         const icon = L.divIcon({
-          className: 'custom-marker-container',
-          html: `<div style="background-color: ${color}; width: ${iconSize}px; height: ${iconSize}px;" class="custom-marker-dot"></div>`,
-          iconSize: [iconSize, iconSize],
-          iconAnchor: [iconSize / 2, iconSize / 2]
+          className: 'custom-marker-wrapper',
+          html: iconHtml,
+          iconSize: [100, 40], // Large enough area for the text
+          iconAnchor: [50, 6] // Anchored at the horizontal center of the dot
         });
 
         const marker = L.marker([site.lat, site.lng], { icon })
           .on('click', () => onSiteClick(site));
 
-        if (!mini) {
-          marker.bindTooltip(`
-            <div style="padding: 2px 4px;">
-              <div style="font-weight: 900; font-size: 10px; color: #1e293b; text-transform: uppercase;">${site.id}</div>
-              <div style="font-size: 10px; color: #64748b;">${site.name}</div>
-            </div>
-          `, { direction: 'top', offset: [0, -5], opacity: 0.9 });
-        }
-
         markersRef.current?.addLayer(marker);
       });
 
-      // Adjust focus to cover the markers or reset to Philippines overview
+      // Adjust focus
       if (!mini) {
         if (validSites.length > 0) {
           const bounds = L.latLngBounds(validSites.map(s => [s.lat, s.lng]));
-          // Use a small delay for fitBounds to ensure the map container size is fully ready
           setTimeout(() => {
             if (mapRef.current) {
               mapRef.current.fitBounds(bounds, { 
-                padding: [40, 40], 
+                padding: [50, 50], 
                 maxZoom: 12,
                 animate: true 
               });
             }
           }, 150);
         } else {
-          // Reset to default PH view if no markers
           mapRef.current.setView([12.8797, 121.7740], 6);
         }
       }
     }
 
-    // Handle window resize or container visibility changes
     const resizeObserver = new ResizeObserver(() => {
       if (mapRef.current) {
         mapRef.current.invalidateSize();
