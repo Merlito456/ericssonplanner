@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   ResponsiveContainer, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip
@@ -9,7 +8,8 @@ import {
   Zap, Loader2, CheckCircle, Plus, RefreshCw, LogOut, 
   MapPin, Info, Wifi, Cpu, Globe, Terminal, ShieldCheck, Server,
   Database, Trash2, ListFilter, BarChart3, Table as TableIcon, Sparkles,
-  ClipboardList, ChevronLeft, CalendarDays, History, User as UserIcon
+  ClipboardList, ChevronLeft, CalendarDays, History, User as UserIcon,
+  Navigation
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, RiskLevel, SiteMilestones, ActivityLog } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
@@ -17,6 +17,8 @@ import { strategyEngine } from './services/strategyEngine.ts';
 import { dbService } from './services/db.ts';
 
 const COLORS = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#94a3b8'];
+
+const REGIONS = ['NCR', 'Luzon', 'Visayas', 'Mindanao'];
 
 const DEFAULT_MILESTONES: SiteMilestones = {
   survey: { plan: '', actual: '' },
@@ -507,10 +509,15 @@ const App: React.FC = () => {
       const siteToSave = {
         ...formData,
         name: formData.name || 'Unnamed Node',
-        last_update: new Date().toISOString(),
-        progress: formData.progress || 0,
-        status: formData.status || SiteStatus.PENDING,
+        region: formData.region || 'NCR',
+        lat: Number(formData.lat) || 14.59,
+        lng: Number(formData.lng) || 120.98,
+        // Fix: Explicitly cast to the permitted union type for current_vendor to resolve Type 'Vendor' mismatch (Line 728 approx)
+        current_vendor: (formData.current_vendor || Vendor.HUAWEI) as Vendor.HUAWEI | Vendor.NOKIA,
         risk_level: formData.risk_level || RiskLevel.Low,
+        progress: formData.progress || 0,
+        last_update: new Date().toISOString(),
+        status: formData.status || SiteStatus.PENDING,
         target_vendor: Vendor.ERICSSON,
         milestones: formData.milestones || { ...DEFAULT_MILESTONES },
         tasks: formData.tasks || DEFAULT_TASKS.map(t => ({ ...t, site_id: formData.id! })),
@@ -559,16 +566,31 @@ const App: React.FC = () => {
     setFormData({ ...formData, milestones: currentMilestones });
   };
 
-  const handleSingleSiteAutoSchedule = async () => {
+  const handleSingleSiteAutoSchedule = async (site?: Site) => {
     if (!isAdmin) return;
+    const target = site || formData as Site;
     const newMilestones = await strategyEngine.generateMilestonePlan();
-    setFormData({ 
-      ...formData, 
-      milestones: newMilestones,
-      scheduled_date: newMilestones.survey.plan,
-      status: SiteStatus.PLANNED
-    });
-    await logActivity('Generated Milestone Plan', `Auto-calculated deployment timeline for node ${formData.id}.`, 'update');
+    
+    if (site) {
+      const updatedSite = { 
+        ...site, 
+        milestones: newMilestones,
+        scheduled_date: newMilestones.survey.plan,
+        status: SiteStatus.PLANNED,
+        last_update: new Date().toISOString()
+      };
+      await dbService.upsertSite(updatedSite);
+      await logActivity('Plan Node Triggered', `Direct planning logic applied to node ${site.id}.`, 'update');
+      await refreshData();
+    } else {
+      setFormData({ 
+        ...formData, 
+        milestones: newMilestones,
+        scheduled_date: newMilestones.survey.plan,
+        status: SiteStatus.PLANNED
+      });
+      await logActivity('Generated Milestone Plan', `Auto-calculated deployment timeline for node ${target.id}.`, 'update');
+    }
   };
 
   const handleTaskToggle = async (siteId: string, taskId: string) => {
@@ -596,7 +618,6 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     setScheduling(true);
     try {
-      // Use strategyEngine for offline intelligent batch planning
       const schedule = await strategyEngine.generateDeploymentSchedule(sites);
       const updatedSites = await Promise.all(sites.map(async s => {
         const item = schedule.find((sch: any) => sch.siteId === s.id);
@@ -621,7 +642,6 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     setLoadingAi(true);
     try {
-      // Use strategyEngine for offline project analysis
       const result = await strategyEngine.analyzeProjectStatus(sites);
       setAiAnalysis(result);
       await logActivity('Nodal Analysis Triggered', 'Strategy engine executed nationwide rollout health analysis.', 'system');
@@ -754,7 +774,7 @@ const App: React.FC = () => {
                <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
                  <table className="w-full text-left">
                    <thead className="bg-slate-50 border-b border-slate-200">
-                     <tr><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">GPS Coordinates</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th></tr>
+                     <tr><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Name</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Region</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th></tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                      {(filteredSites || []).map(s => (
@@ -762,7 +782,7 @@ const App: React.FC = () => {
                          <td className="px-6 py-4 font-bold">{s.id}</td>
                          <td className="px-6 py-4 text-sm font-medium">{s.name}</td>
                          <td className="px-6 py-4 text-xs font-bold text-blue-600">{s.current_vendor}</td>
-                         <td className="px-6 py-4 text-[10px] font-mono text-slate-400">{(s.lat || 0).toFixed(4)}, {(s.lng || 0).toFixed(4)}</td>
+                         <td className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase">{s.region}</td>
                          <td className="px-6 py-4"><span className={`px-2 py-1 rounded-md text-[9px] font-black uppercase border ${s.status === SiteStatus.COMPLETED ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{s.status}</span></td>
                          <td className="px-6 py-4 text-right">
                            {isAdmin && (
@@ -812,8 +832,28 @@ const App: React.FC = () => {
                  ) : (
                    pendingSites.map(site => (
                     <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group hover:border-blue-500 transition-all cursor-pointer" onClick={() => handleOpenSite(site, 'view')}>
-                      <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">{site?.id?.slice(0,3) || '??'}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div></div></div>
-                      <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Deployment Date</div><div className="text-sm font-bold text-slate-700">{site.scheduled_date || 'TBD'}</div></div><button className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
+                      <div className="flex items-center gap-6">
+                        <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">{site?.id?.slice(0,3) || '??'}</div>
+                        <div>
+                          <h4 className="font-bold text-slate-900">{site.name}</h4>
+                          <div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-6">
+                        <div className="text-right">
+                          <div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Deployment Date</div>
+                          <div className="text-sm font-bold text-slate-700">{site.scheduled_date || 'TBD'}</div>
+                        </div>
+                        {isAdmin && site.status === SiteStatus.PENDING && (
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleSingleSiteAutoSchedule(site); }}
+                            className="flex items-center gap-1.5 px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border border-blue-200 group/btn"
+                          >
+                            <Sparkles size={14} className="group-hover/btn:animate-pulse" /> Plan Node
+                          </button>
+                        )}
+                        <button className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button>
+                      </div>
                     </div>
                    ))
                  )}
@@ -898,7 +938,7 @@ const App: React.FC = () => {
 
         {selectedSite && (
           <div className="fixed inset-0 z-[100] flex items-center justify-end">
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setSelectedSite(null)}></div>
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => { setSelectedSite(null); setFormData({}); }}></div>
             <div className="w-full max-w-2xl h-full bg-white shadow-2xl relative z-10 p-10 overflow-y-auto border-l border-slate-200 animate-in slide-in-from-right duration-300">
               <div className="flex justify-between items-start mb-8">
                 <div>
@@ -908,22 +948,65 @@ const App: React.FC = () => {
                 <button onClick={() => { setSelectedSite(null); setFormData({}); }} className="p-2 bg-slate-100 text-slate-500 hover:bg-slate-200 transition-colors rounded-xl"><X size={20}/></button>
               </div>
 
-              <div className="space-y-8">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400">Site Identifier</label><input disabled={modalMode !== 'create'} value={formData.id || ''} onChange={e=>setFormData({...formData, id:e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold"/></div>
-                  <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400">Node Name</label><input value={formData.name || ''} onChange={e=>setFormData({...formData, name:e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold"/></div>
+              <div className="space-y-8 pb-20">
+                {/* Core Inventory Data */}
+                <div className="space-y-4">
+                  <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2"><Database size={14}/> Node Infrastructure Data</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400">Site Identifier</label><input disabled={modalMode !== 'create'} value={formData.id || ''} onChange={e=>setFormData({...formData, id:e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold"/></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400">Node Name</label><input value={formData.name || ''} onChange={e=>setFormData({...formData, name:e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold"/></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-slate-400">Project Region</label>
+                      <select value={formData.region || 'NCR'} onChange={e=>setFormData({...formData, region:e.target.value})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold appearance-none">
+                        {REGIONS.map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-slate-400">Current Vendor</label>
+                      {/* Fix: Specifically cast to Vendor.HUAWEI | Vendor.NOKIA to satisfy Site interface requirements and avoid Type 'Vendor' mismatch (Line 1094 approx) */}
+                      <select value={formData.current_vendor || Vendor.HUAWEI} onChange={e=>setFormData({...formData, current_vendor: e.target.value as Vendor.HUAWEI | Vendor.NOKIA})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold appearance-none">
+                        <option value={Vendor.HUAWEI}>{Vendor.HUAWEI}</option>
+                        <option value={Vendor.NOKIA}>{Vendor.NOKIA}</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400">Latitude</label><input type="number" step="0.000001" value={formData.lat || 0} onChange={e=>setFormData({...formData, lat: Number(e.target.value)})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold font-mono"/></div>
+                    <div className="space-y-1"><label className="text-[10px] font-black uppercase text-slate-400">Longitude</label><input type="number" step="0.000001" value={formData.lng || 0} onChange={e=>setFormData({...formData, lng: Number(e.target.value)})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold font-mono"/></div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-slate-400">Risk Level</label>
+                      <select value={formData.risk_level || RiskLevel.Low} onChange={e=>setFormData({...formData, risk_level: e.target.value as RiskLevel})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold appearance-none">
+                        {Object.values(RiskLevel).map(r => <option key={r} value={r}>{r}</option>)}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black uppercase text-slate-400">Progress (%)</label>
+                      <input type="number" min="0" max="100" value={formData.progress || 0} onChange={e=>setFormData({...formData, progress: Number(e.target.value)})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold"/>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black uppercase text-slate-400">Site Status</label>
+                    <select value={formData.status || SiteStatus.PENDING} onChange={e=>setFormData({...formData, status: e.target.value as SiteStatus})} className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl font-bold appearance-none">
+                      {Object.values(SiteStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
                 </div>
 
+                {/* Milestones Section */}
                 <div className="p-8 bg-slate-50 rounded-3xl border border-slate-200 space-y-6">
                   <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                     <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2"><ListFilter size={14}/> Project Milestone Tracker (Plan vs Actual)</h4>
                     {isAdmin && (
                       <button 
-                        onClick={handleSingleSiteAutoSchedule}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all border border-blue-200 shadow-sm"
+                        onClick={() => handleSingleSiteAutoSchedule()}
+                        className="flex items-center gap-1.5 px-4 py-2 bg-white text-blue-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-600 hover:text-white transition-all border border-blue-200 shadow-sm group/sparkle"
                         title="Auto-fill planned dates based on standard Ericsson rollout offsets"
                       >
-                        <Sparkles size={12}/> Auto-Fill Plan
+                        <Sparkles size={14} className="group-hover/sparkle:animate-spin" /> Auto-Fill Plan
                       </button>
                     )}
                   </div>
@@ -932,16 +1015,25 @@ const App: React.FC = () => {
                       <div key={key} className="space-y-2">
                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{key.replace(/_/g, ' ')}</label>
                         <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1"><span className="text-[8px] font-bold text-slate-400 uppercase">Planned</span><input type="date" value={formData.milestones?.[key]?.plan || ''} onChange={e => handleMilestoneChange(key, 'plan', e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono"/></div>
-                          <div className="space-y-1"><span className="text-[8px] font-bold text-blue-400 uppercase">Actual</span><input type="date" value={formData.milestones?.[key]?.actual || ''} onChange={e => handleMilestoneChange(key, 'actual', e.target.value)} className="w-full p-2 bg-white border border-blue-200 rounded-lg text-xs font-mono"/></div>
+                          <div className="space-y-1">
+                            <span className="text-[8px] font-bold text-slate-400 uppercase">Planned</span>
+                            <input type="date" value={formData.milestones?.[key]?.plan || ''} onChange={e => handleMilestoneChange(key, 'plan', e.target.value)} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono"/>
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[8px] font-bold text-blue-400 uppercase">Actual</span>
+                            <input type="date" value={formData.milestones?.[key]?.actual || ''} onChange={e => handleMilestoneChange(key, 'actual', e.target.value)} className="w-full p-2 bg-white border border-blue-200 rounded-lg text-xs font-mono"/>
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <div className="flex gap-4 pb-20">
-                  <button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">Commit to Database</button>
+                {/* Actions */}
+                <div className="flex gap-4">
+                  <button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-500/20 hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                    {modalMode === 'create' ? 'Register New Node' : 'Commit Changes'}
+                  </button>
                   <button onClick={() => { setSelectedSite(null); setFormData({}); }} className="px-6 bg-white border border-slate-200 py-4 rounded-2xl font-black hover:bg-slate-50 transition-colors text-slate-600">Cancel</button>
                 </div>
               </div>
