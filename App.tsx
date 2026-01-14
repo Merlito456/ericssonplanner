@@ -8,7 +8,8 @@ import {
   CheckCircle2, ChevronRight, Search, Download, Box, BrainCircuit, 
   Terminal, X, Calendar, PlayCircle, Clock, ListTodo, TrendingUp, 
   Zap, Loader2, CheckCircle, FileText, Plus, Trash2, Edit2, Save, 
-  History, MessageSquare, Radio, Server, ShieldCheck, RefreshCw, LogOut, Lock, User as UserIcon
+  History, MessageSquare, Radio, Server, ShieldCheck, RefreshCw, LogOut, Lock, User as UserIcon,
+  MapPin, Navigation
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
@@ -283,6 +284,12 @@ const App: React.FC = () => {
       alert("Site ID and Site Name are mandatory.");
       return;
     }
+    // Validation for lat/lng
+    if (formData.coordinates?.lat === undefined || formData.coordinates?.lng === undefined) {
+      alert("GPS Coordinates (Latitude and Longitude) are mandatory.");
+      return;
+    }
+
     setIsDBOperation(true);
     try {
       const siteToSave = { 
@@ -440,13 +447,19 @@ const App: React.FC = () => {
                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
                  <table className="w-full text-left">
                    <thead className="bg-slate-50 border-b border-slate-200">
-                     <tr><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Progress</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Action</th></tr>
+                     <tr><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site ID</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Site Name</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Location</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Vendor</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Progress</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th><th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Action</th></tr>
                    </thead>
                    <tbody className="divide-y divide-slate-100">
                      {filteredSites.map(site => (
                        <tr key={site.id} className="hover:bg-slate-50 cursor-pointer transition-colors" onClick={() => { setSelectedSite(site); setModalMode('view'); }}>
                          <td className="px-6 py-4 font-bold text-slate-900">{site.id}</td>
                          <td className="px-6 py-4 text-slate-700 text-sm font-medium">{site.name}</td>
+                         <td className="px-6 py-4">
+                           <div className="flex flex-col">
+                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{site.region}</span>
+                             <span className="text-[9px] text-slate-500 flex items-center gap-1 font-mono"><MapPin size={8}/> {site.coordinates.lat.toFixed(4)}, {site.coordinates.lng.toFixed(4)}</span>
+                           </div>
+                         </td>
                          <td className="px-6 py-4"><span className={`px-2 py-1 rounded-md text-[10px] font-black border ${site.currentVendor === Vendor.HUAWEI ? 'bg-red-50 text-red-600 border-red-100' : 'bg-blue-50 text-blue-600 border-blue-100'}`}>{site.currentVendor}</span></td>
                          <td className="px-6 py-4"><div className="w-16 bg-slate-100 h-1.5 rounded-full"><div className="bg-blue-600 h-full" style={{width: `${site.progress || 0}%`}}></div></div></td>
                          <td className="px-6 py-4 text-xs font-semibold">{site.status}</td>
@@ -471,7 +484,7 @@ const App: React.FC = () => {
                <div className="space-y-4">
                  {sites.filter(s => s.status !== SiteStatus.COMPLETED).map(site => (
                    <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group">
-                     <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div></div></div>
+                     <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black">{site.id.slice(0,3)}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region} • <span className="font-mono text-[9px]">{site.coordinates.lat.toFixed(4)}, {site.coordinates.lng.toFixed(4)}</span></div></div></div>
                      <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Target Date</div><div className="text-sm font-bold text-slate-700">{site.scheduledDate || 'TBD'}</div></div><button onClick={() => { setSelectedSite(site); setModalMode('view'); }} className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
                    </div>
                  ))}
@@ -486,7 +499,7 @@ const App: React.FC = () => {
                   {sites.filter(s => s.status === SiteStatus.IN_PROGRESS).map(site => (
                     <div key={site.id} className="bg-white rounded-3xl border border-slate-200 overflow-hidden relative">
                       {isDBOperation && <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-10"><Loader2 className="animate-spin text-blue-600" /></div>}
-                      <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{site.id}</div><h3 className="text-xl font-bold mt-1">{site.name}</h3></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
+                      <div className="p-6 bg-slate-900 text-white flex justify-between items-center"><div><div className="text-[10px] text-blue-400 font-bold uppercase tracking-widest">{site.id}</div><h3 className="text-xl font-bold mt-1">{site.name}</h3><div className="text-[9px] text-slate-400 font-mono">{site.coordinates.lat}, {site.coordinates.lng}</div></div><div className="text-3xl font-black text-blue-500">{site.progress}%</div></div>
                       <div className="p-6 space-y-3">
                          {site.tasks?.map(task => (
                            <div key={task.id} onClick={() => handleTaskToggle(site.id, task.id)} className={`p-4 rounded-2xl flex items-center justify-between cursor-pointer border ${task.isCompleted ? 'bg-emerald-50 border-emerald-100 text-emerald-900' : 'bg-slate-50 border-slate-100'}`}>
@@ -607,6 +620,54 @@ const App: React.FC = () => {
                       )}
                     </div>
                   </div>
+                </div>
+
+                {/* GPS COORDINATES SECTION */}
+                <div className="space-y-6">
+                  <div className="flex items-center gap-2">
+                    <Navigation size={18} className="text-blue-600"/>
+                    <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Geospatial Data</h3>
+                  </div>
+                  <div className="grid grid-cols-2 gap-6">
+                    <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100">
+                      <div className="text-[10px] text-blue-400 font-black uppercase mb-2">Latitude</div>
+                      <div className="font-mono font-bold text-lg">
+                        {modalMode === 'view' ? selectedSite.coordinates.lat : (
+                          <input 
+                            type="number" 
+                            step="0.000001"
+                            className="bg-transparent font-bold w-full outline-none" 
+                            value={formData.coordinates?.lat ?? ''} 
+                            onChange={e=>setFormData({...formData, coordinates: { ...formData.coordinates, lat: parseFloat(e.target.value) } as any})} 
+                            placeholder="e.g. 14.5995"
+                          />
+                        )}
+                      </div>
+                    </div>
+                    <div className="p-6 bg-blue-50/50 rounded-3xl border border-blue-100">
+                      <div className="text-[10px] text-blue-400 font-black uppercase mb-2">Longitude</div>
+                      <div className="font-mono font-bold text-lg">
+                        {modalMode === 'view' ? selectedSite.coordinates.lng : (
+                          <input 
+                            type="number" 
+                            step="0.000001"
+                            className="bg-transparent font-bold w-full outline-none" 
+                            value={formData.coordinates?.lng ?? ''} 
+                            onChange={e=>setFormData({...formData, coordinates: { ...formData.coordinates, lng: parseFloat(e.target.value) } as any})} 
+                            placeholder="e.g. 120.9842"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {modalMode === 'view' && (
+                    <div className="h-40 w-full rounded-2xl bg-slate-100 overflow-hidden relative border border-slate-200">
+                       <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Interactive Plot Active</div>
+                       <div className="absolute bottom-4 right-4 flex gap-2">
+                          <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedSite.coordinates.lat},${selectedSite.coordinates.lng}`, '_blank')} className="px-3 py-1.5 bg-white shadow-sm border border-slate-200 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-slate-50">View on External Map</button>
+                       </div>
+                    </div>
+                  )}
                 </div>
 
                 {modalMode === 'view' && isAdmin && (
