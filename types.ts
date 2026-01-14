@@ -15,8 +15,14 @@ export enum SiteStatus {
 }
 
 export enum UserRole {
-  ADMIN = 'Admin',
-  USER = 'User'
+  Admin = 'Admin',
+  User = 'User'
+}
+
+export enum RiskLevel {
+  Low = 'Low',
+  Medium = 'Medium',
+  High = 'High'
 }
 
 export interface User {
@@ -24,23 +30,26 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
-  password?: string; // Only for simulation
+  password?: string;
 }
 
 export interface DeploymentTask {
   id: string;
+  site_id: string;
   label: string;
-  isCompleted: boolean;
-  assignedRole: string;
-  timestamp?: string;
+  is_completed: boolean;
+  assigned_role: string;
+  updated_at?: string;
 }
 
 export interface Equipment {
   id: string;
+  site_id: string;
   type: string;
   vendor: Vendor;
   model: string;
-  serialNumber: string;
+  serial_number: string;
+  installed_at?: string;
 }
 
 export interface TechnicalInstruction {
@@ -53,23 +62,21 @@ export interface Site {
   id: string;
   name: string;
   region: string;
-  coordinates: {
-    lat: number;
-    lng: number;
-  };
-  currentVendor: Vendor.HUAWEI | Vendor.NOKIA;
-  targetVendor: Vendor.ERICSSON;
+  lat: number;
+  lng: number;
+  current_vendor: Vendor.HUAWEI | Vendor.NOKIA;
+  target_vendor: Vendor.ERICSSON;
   status: SiteStatus;
-  lastUpdate: string;
-  equipment: Equipment[];
-  riskLevel: 'Low' | 'Medium' | 'High';
-  scheduledDate?: string;
-  assignedTeam?: string;
-  progress?: number;
+  risk_level: RiskLevel;
+  progress: number;
+  scheduled_date?: string;
+  last_update: string;
+  // UI-only aggregate fields
+  equipment?: Equipment[];
   tasks?: DeploymentTask[];
   technicalInstructions?: {
     steps: TechnicalInstruction[];
     alerts: string[];
-    generatedAt: string;
+    generated_at: string;
   };
 }
