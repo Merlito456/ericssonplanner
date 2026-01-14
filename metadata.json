@@ -1,0 +1,7 @@
+{
+  "name": "Ericsson-Globe Swap Planner",
+  "description": "A high-performance project planning tool for the Ericsson-Globe nationwide equipment replacement project, featuring AI-driven logistics optimization and site management.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
