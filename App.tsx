@@ -8,7 +8,7 @@ import {
   CheckCircle2, ChevronRight, Search, X, Calendar, PlayCircle, Clock, 
   Zap, Loader2, CheckCircle, Plus, RefreshCw, LogOut, 
   MapPin, Info, Wifi, Cpu, Globe, Terminal, ShieldCheck, Server,
-  Database, Trash2, ListFilter, BarChart3, Table as TableIcon
+  Database, Trash2, ListFilter, BarChart3, Table as TableIcon, Sparkles
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, RiskLevel, SiteMilestones } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
@@ -370,6 +370,18 @@ const App: React.FC = () => {
     setFormData({ ...formData, milestones: currentMilestones });
   };
 
+  const handleSingleSiteAutoSchedule = async () => {
+    if (!isAdmin) return;
+    // Set first milestone plan to today by default if nothing exists
+    const newMilestones = await strategyEngine.generateMilestonePlan();
+    setFormData({ 
+      ...formData, 
+      milestones: newMilestones,
+      scheduled_date: newMilestones.survey.plan,
+      status: SiteStatus.PLANNED
+    });
+  };
+
   const handleTaskToggle = async (siteId: string, taskId: string) => {
     const data = sites || [];
     const site = data.find(s => s.id === siteId);
@@ -396,11 +408,20 @@ const App: React.FC = () => {
     setScheduling(true);
     try {
       const schedule = await strategyEngine.generateDeploymentSchedule(sites);
-      const updatedSites = sites.map(s => {
+      const updatedSites = await Promise.all(sites.map(async s => {
         const item = schedule.find((sch: any) => sch.siteId === s.id);
-        if (item) return { ...s, scheduled_date: item.scheduledDate, status: SiteStatus.PLANNED };
+        if (item) {
+          // Also generate milestones based on the scheduled date for consistency
+          const milestones = await strategyEngine.generateMilestonePlan(item.scheduledDate);
+          return { 
+            ...s, 
+            scheduled_date: item.scheduledDate, 
+            status: SiteStatus.PLANNED,
+            milestones: milestones
+          };
+        }
         return s;
-      });
+      }));
       for (const site of updatedSites) await dbService.upsertSite(site);
       setSites(updatedSites);
     } catch (error: any) {
@@ -696,7 +717,18 @@ const App: React.FC = () => {
                 </div>
 
                 <div className="p-8 bg-slate-50 rounded-3xl border border-slate-200 space-y-6">
-                  <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b border-slate-200 pb-2"><ListFilter size={14}/> Project Milestone Tracker (Plan vs Actual)</h4>
+                  <div className="flex justify-between items-center border-b border-slate-200 pb-2">
+                    <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2"><ListFilter size={14}/> Project Milestone Tracker (Plan vs Actual)</h4>
+                    {isAdmin && (
+                      <button 
+                        onClick={handleSingleSiteAutoSchedule}
+                        className="flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-blue-100 transition-all border border-blue-200 shadow-sm"
+                        title="Auto-fill planned dates based on standard Ericsson rollout offsets"
+                      >
+                        <Sparkles size={12}/> Auto-Fill Plan
+                      </button>
+                    )}
+                  </div>
                   <div className="grid grid-cols-1 gap-6">
                     {(Object.keys(DEFAULT_MILESTONES) as Array<keyof SiteMilestones>).map((key) => (
                       <div key={key} className="space-y-2">
