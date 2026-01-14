@@ -8,14 +8,23 @@ import {
   CheckCircle2, ChevronRight, Search, X, Calendar, PlayCircle, Clock, 
   Zap, Loader2, CheckCircle, Plus, RefreshCw, LogOut, 
   MapPin, Info, Wifi, Cpu, Globe, Terminal, ShieldCheck, Server,
-  Database, Trash2
+  Database, Trash2, ListFilter, BarChart3, Table as TableIcon
 } from 'lucide-react';
-import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, RiskLevel } from './types.ts';
+import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole, RiskLevel, SiteMilestones } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
 import { strategyEngine } from './services/strategyEngine.ts';
 import { dbService } from './services/db.ts';
 
 const COLORS = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#94a3b8'];
+
+const DEFAULT_MILESTONES: SiteMilestones = {
+  survey: { plan: '', actual: '' },
+  survey_report: { plan: '', actual: '' },
+  installation: { plan: '', actual: '' },
+  integration: { plan: '', actual: '' },
+  completion_report: { plan: '', actual: '' },
+  site_close: { plan: '', actual: '' },
+};
 
 const DEFAULT_TASKS: DeploymentTask[] = [
   { id: '1', site_id: '', label: 'Site Survey & Pre-checks', is_completed: true, assigned_role: 'Surveyor' },
@@ -116,10 +125,116 @@ const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
   );
 };
 
+const GanttChart: React.FC<{sites: Site[]}> = ({sites}) => {
+  const milestonesList = [
+    { key: 'survey', label: 'Survey' },
+    { key: 'survey_report', label: 'Report' },
+    { key: 'installation', label: 'Install' },
+    { key: 'integration', label: 'Integ' },
+    { key: 'completion_report', label: 'Final' },
+    { key: 'site_close', label: 'Close' },
+  ];
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="p-6 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+        <h3 className="text-sm font-black uppercase tracking-widest text-slate-400">Project Timeline Analysis (Gantt)</h3>
+        <div className="flex gap-4">
+          <div className="flex items-center gap-2"><div className="w-3 h-3 bg-slate-200 rounded-sm"></div><span className="text-[10px] font-bold text-slate-500 uppercase">Planned</span></div>
+          <div className="flex items-center gap-2"><div className="w-3 h-3 bg-blue-500 rounded-sm"></div><span className="text-[10px] font-bold text-slate-500 uppercase">Actual</span></div>
+        </div>
+      </div>
+      <div className="overflow-x-auto">
+        <div className="min-w-[1000px] p-6 space-y-8">
+          {sites.map(site => (
+            <div key={site.id} className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-slate-900">{site.id} - {site.name}</span>
+                <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase">{site.progress}%</span>
+              </div>
+              <div className="grid grid-cols-6 gap-2">
+                {milestonesList.map(m => {
+                  const data = (site.milestones as any)[m.key];
+                  return (
+                    <div key={m.key} className="space-y-1">
+                      <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter text-center">{m.label}</div>
+                      <div className="h-6 w-full bg-slate-100 rounded-md relative overflow-hidden flex flex-col">
+                        <div className={`h-1/2 w-full ${data?.plan ? 'bg-slate-300' : 'bg-transparent'}`} title={`Planned: ${data?.plan || 'N/A'}`}></div>
+                        <div className={`h-1/2 w-full ${data?.actual ? 'bg-blue-500' : 'bg-transparent'}`} title={`Actual: ${data?.actual || 'N/A'}`}></div>
+                      </div>
+                      <div className="text-[8px] font-mono text-slate-500 text-center">{data?.actual || '--'}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const SpreadsheetTable: React.FC<{sites: Site[]}> = ({sites}) => {
+  const milestoneKeys = [
+    { key: 'survey', label: 'Survey' },
+    { key: 'survey_report', label: 'S. Report' },
+    { key: 'installation', label: 'Installation' },
+    { key: 'integration', label: 'Integration' },
+    { key: 'completion_report', label: 'Comp. Report' },
+    { key: 'site_close', label: 'Site Close' },
+  ];
+
+  return (
+    <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="px-4 py-4 sticky left-0 bg-slate-50 z-10 border-r border-slate-200 text-[10px] font-black text-slate-400 uppercase tracking-widest min-w-[150px]">Node ID</th>
+              {milestoneKeys.map(m => (
+                <th key={m.key} colSpan={2} className="px-4 py-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-200">{m.label}</th>
+              ))}
+            </tr>
+            <tr className="bg-slate-50 border-b border-slate-200">
+              <th className="px-4 py-2 sticky left-0 bg-slate-50 z-10 border-r border-slate-200"></th>
+              {milestoneKeys.map(m => (
+                <React.Fragment key={m.key}>
+                  <th className="px-2 py-2 text-[9px] font-black text-slate-400 uppercase border-r border-slate-100 text-center">Plan</th>
+                  <th className="px-2 py-2 text-[9px] font-black text-blue-500 uppercase border-r border-slate-200 text-center">Actual</th>
+                </React.Fragment>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {sites.map(s => (
+              <tr key={s.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-4 py-3 sticky left-0 bg-white z-10 border-r border-slate-200 font-bold text-xs truncate">{s.id}</td>
+                {milestoneKeys.map(m => {
+                  const data = (s.milestones as any)[m.key];
+                  return (
+                    <React.Fragment key={m.key}>
+                      <td className="px-2 py-3 text-[10px] font-mono text-center border-r border-slate-100 text-slate-500">{data?.plan || '--'}</td>
+                      <td className={`px-2 py-3 text-[10px] font-mono text-center border-r border-slate-200 ${data?.actual ? 'text-blue-600 font-bold' : 'text-slate-300'}`}>
+                        {data?.actual || '--'}
+                      </td>
+                    </React.Fragment>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
-  const [activeTab, setActiveTab] = useState<'monitoring' | 'sites' | 'plan' | 'actual' | 'map' | 'ai'>('monitoring');
+  const [activeTab, setActiveTab] = useState<'monitoring' | 'sites' | 'plan' | 'actual' | 'map' | 'ai' | 'track'>('monitoring');
+  const [trackView, setTrackView] = useState<'table' | 'gantt'>('table');
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [modalMode, setModalMode] = useState<'view' | 'edit' | 'create'>('view');
   const [formData, setFormData] = useState<Partial<Site>>({});
@@ -160,7 +275,7 @@ const App: React.FC = () => {
 
   const handleOpenSite = (site: Site, mode: 'view' | 'edit' | 'create') => {
     setSelectedSite(site);
-    setFormData({ ...site });
+    setFormData({ ...site, milestones: site.milestones || { ...DEFAULT_MILESTONES } });
     setModalMode(mode);
   };
 
@@ -181,6 +296,7 @@ const App: React.FC = () => {
         status: formData.status || SiteStatus.PENDING,
         risk_level: formData.risk_level || RiskLevel.Low,
         target_vendor: Vendor.ERICSSON,
+        milestones: formData.milestones || { ...DEFAULT_MILESTONES },
         tasks: formData.tasks || DEFAULT_TASKS.map(t => ({ ...t, site_id: formData.id! })),
         equipment: formData.equipment || []
       } as Site;
@@ -216,6 +332,12 @@ const App: React.FC = () => {
     } finally {
       setIsDBOperation(false);
     }
+  };
+
+  const handleMilestoneChange = (key: keyof SiteMilestones, field: 'plan' | 'actual', value: string) => {
+    const currentMilestones = { ...(formData.milestones || { ...DEFAULT_MILESTONES }) };
+    currentMilestones[key] = { ...currentMilestones[key], [field]: value };
+    setFormData({ ...formData, milestones: currentMilestones });
   };
 
   const handleEquipmentChange = (type: 'swapped' | 'install', field: keyof Equipment, value: string) => {
@@ -337,6 +459,7 @@ const App: React.FC = () => {
           <NavItem active={activeTab === 'monitoring'} onClick={() => setActiveTab('monitoring')} icon={<LayoutDashboard size={18}/>} label="Dashboard" />
           <NavItem active={activeTab === 'sites'} onClick={() => setActiveTab('sites')} icon={<Database size={18}/>} label="Inventory" />
           <NavItem active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={<Calendar size={18}/>} label="Planning" />
+          <NavItem active={activeTab === 'track'} onClick={() => setActiveTab('track')} icon={<ListFilter size={18}/>} label="Milestones" />
           <NavItem active={activeTab === 'actual'} onClick={() => setActiveTab('actual')} icon={<PlayCircle size={18}/>} label="Field Ops" />
           <NavItem active={activeTab === 'map'} onClick={() => setActiveTab('map')} icon={<Globe size={18}/>} label="Deployment Map" />
           {isAdmin && <NavItem active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<Cpu size={18}/>} label="Cognitive Core" />}
@@ -422,7 +545,7 @@ const App: React.FC = () => {
                   <h2 className="text-2xl font-bold">Project Inventory</h2>
                   {isAdmin && (
                     <button 
-                      onClick={() => handleOpenSite({ id: `PH-G-${Math.floor(Math.random()*9999)}`, name: '', region: 'NCR', lat: 14.59, lng: 120.98, current_vendor: Vendor.HUAWEI, status: SiteStatus.PENDING, equipment: [], target_vendor: Vendor.ERICSSON, risk_level: RiskLevel.Low, progress: 0, last_update: new Date().toISOString() } as Site, 'create')} 
+                      onClick={() => handleOpenSite({ id: `PH-G-${Math.floor(Math.random()*9999)}`, name: '', region: 'NCR', lat: 14.59, lng: 120.98, current_vendor: Vendor.HUAWEI, status: SiteStatus.PENDING, equipment: [], target_vendor: Vendor.ERICSSON, risk_level: RiskLevel.Low, progress: 0, last_update: new Date().toISOString(), milestones: { ...DEFAULT_MILESTONES } } as Site, 'create')} 
                       className="bg-blue-600 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-blue-700 transition-all"
                     >
                       <Plus size={18}/> New Site
@@ -458,6 +581,24 @@ const App: React.FC = () => {
                    </tbody>
                  </table>
                </div>
+            </div>
+          )}
+
+          {activeTab === 'track' && (
+            <div className="animate-in fade-in duration-500 space-y-8">
+              <div className="flex justify-between items-center">
+                 <div><h2 className="text-2xl font-bold text-slate-900">Milestone Tracking</h2><p className="text-slate-500 text-sm mt-1">Plan vs Actual project execution analysis</p></div>
+                 <div className="flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+                   <button onClick={() => setTrackView('table')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${trackView === 'table' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+                    <TableIcon size={14}/> Spreadsheet
+                   </button>
+                   <button onClick={() => setTrackView('gantt')} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${trackView === 'gantt' ? 'bg-white shadow-sm text-blue-600' : 'text-slate-400 hover:text-slate-600'}`}>
+                    <BarChart3 size={14}/> Gantt Chart
+                   </button>
+                 </div>
+              </div>
+
+              {trackView === 'table' ? <SpreadsheetTable sites={filteredSites} /> : <GanttChart sites={filteredSites} />}
             </div>
           )}
 
@@ -606,6 +747,39 @@ const App: React.FC = () => {
                       <label className="text-[10px] font-black text-slate-400">Longitude (DECIMAL)</label>
                       <input type="number" step="0.00000001" value={formData.lng || ''} onChange={e=>setFormData({...formData, lng: parseFloat(e.target.value) || 0})} className="w-full p-3 bg-white border border-blue-100 rounded-xl font-mono text-xs"/>
                     </div>
+                  </div>
+                </div>
+
+                <div className="p-8 bg-slate-50 rounded-3xl border border-slate-200 space-y-6">
+                  <h4 className="text-[10px] font-black text-slate-900 uppercase tracking-widest flex items-center gap-2 border-b border-slate-200 pb-2">
+                    <ListFilter size={14}/> Project Milestone Tracker (Plan vs Actual)
+                  </h4>
+                  <div className="grid grid-cols-1 gap-6">
+                    {(Object.keys(DEFAULT_MILESTONES) as Array<keyof SiteMilestones>).map((key) => (
+                      <div key={key} className="space-y-2">
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{key.replace(/_/g, ' ')}</label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <span className="text-[8px] font-bold text-slate-400 uppercase">Planned</span>
+                            <input 
+                              type="date" 
+                              value={formData.milestones?.[key]?.plan || ''} 
+                              onChange={e => handleMilestoneChange(key, 'plan', e.target.value)} 
+                              className="w-full p-2 bg-white border border-slate-200 rounded-lg text-xs font-mono"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <span className="text-[8px] font-bold text-blue-400 uppercase">Actual</span>
+                            <input 
+                              type="date" 
+                              value={formData.milestones?.[key]?.actual || ''} 
+                              onChange={e => handleMilestoneChange(key, 'actual', e.target.value)} 
+                              className="w-full p-2 bg-white border border-blue-200 rounded-lg text-xs font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
 
