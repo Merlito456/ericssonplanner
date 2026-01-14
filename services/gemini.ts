@@ -36,9 +36,10 @@ export class GeminiService {
     const ai = this.getClient();
     const summary = sites.map(s => ({
       id: s.id,
-      vendor: s.currentVendor,
+      // Fix: Use correct snake_case property names from Site interface
+      vendor: s.current_vendor,
       status: s.status,
-      risk: s.riskLevel,
+      risk: s.risk_level,
       region: s.region
     }));
 
