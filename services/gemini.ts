@@ -25,12 +25,14 @@ export class GeminiService {
       risk: s.riskLevel
     }));
 
+    // Fix: Using systemInstruction for better persona control and adhering to property access guidelines
     const response = await this.ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Analyze the following swap project data for Ericsson replacing Huawei/Nokia equipment for Globe Telecom. Provide strategic insights, risk mitigation plans, and priority sites.
       
       Data: ${JSON.stringify(summary)}`,
       config: {
+        systemInstruction: "You are a world-class network deployment strategist. Provide concise, professional, and actionable insights based on site inventory data.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -49,11 +51,13 @@ export class GeminiService {
   }
 
   async generateDeploymentSchedule(sites: Site[]) {
+    // Fix: Using systemInstruction for scheduling optimization
     const response = await this.ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Create an optimized 4-week deployment schedule for the following sites. Group by region and minimize travel time. Use ISO dates starting from 2024-01-01.
       Sites: ${JSON.stringify(sites.filter(s => s.status !== 'Completed').map(s => ({id: s.id, name: s.name, region: s.region})))}`,
       config: {
+        systemInstruction: "You are a logistics expert specializing in telecommunications infrastructure rollouts.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.ARRAY,
@@ -73,6 +77,7 @@ export class GeminiService {
   }
 
   async getSwapPlan(site: Site) {
+    // Fix: Using systemInstruction for technical instruction generation
     const response = await this.ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: `Create a detailed technical swap plan for site ${site.id} (${site.name}). 
@@ -80,6 +85,7 @@ export class GeminiService {
       Equipment to swap: ${JSON.stringify(site.equipment)}.
       Provide a step-by-step procedure for the field technicians.`,
       config: {
+        systemInstruction: "You are a senior Ericsson field engineer creating technical methods of procedure (MOP) for network equipment swaps.",
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
