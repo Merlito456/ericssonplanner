@@ -53,7 +53,6 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
     setLoading(true);
     setError(false);
 
-    // Using JSDelivr CDN for better reliability and CORS handling
     d3Json('https://cdn.jsdelivr.net/gh/faeldon/philippines-json-maps@master/2023/geojson/provinces/lowres/philippines-provinces-lowres.json')
       .then((data: any) => {
         if (!data) throw new Error("No data received");
@@ -67,8 +66,7 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
           .attr("d", path as any)
           .attr("fill", "#f1f5f9")
           .attr("stroke", "#cbd5e1")
-          .attr("stroke-width", 0.5)
-          .attr("class", "transition-colors duration-300 hover:fill-slate-200");
+          .attr("stroke-width", 0.5);
 
         const markers = g.append("g")
           .selectAll("g")
@@ -76,7 +74,8 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
           .enter()
           .append("g")
           .attr("transform", d => {
-            const coords = projection([d.coordinates.lng, d.coordinates.lat]);
+            // Updated to use d.lng and d.lat from database schema
+            const coords = projection([d.lng, d.lat]);
             return coords ? `translate(${coords[0]}, ${coords[1]})` : `translate(0,0)`;
           })
           .attr("class", "cursor-pointer")
@@ -97,8 +96,7 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
             }
           })
           .attr("stroke", "#fff")
-          .attr("stroke-width", 2)
-          .attr("class", "transition-transform duration-300 hover:scale-150 shadow-xl");
+          .attr("stroke-width", 2);
 
         if (!mini) {
           markers.append("text")
@@ -109,7 +107,7 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
         }
       })
       .catch(err => {
-        console.error("Map Data Fetch Error:", err);
+        console.error("Map Sync Error:", err);
         setLoading(false);
         setError(true);
       });
@@ -118,52 +116,13 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
 
   return (
     <div className={`relative bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm ${mini ? 'h-[250px]' : 'h-[600px] w-full'}`}>
-      {!mini && (
-        <div className="absolute top-6 left-6 z-10 space-y-2">
-          <div className="bg-white/90 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-xl">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-widest mb-3">Live Deployment Map</h3>
-            <div className="space-y-2">
-              {[
-                { label: 'Completed', color: 'bg-emerald-500' },
-                { label: 'In Progress', color: 'bg-blue-500' },
-                { label: 'Blocked', color: 'bg-red-500' },
-                { label: 'Planned/Pending', color: 'bg-slate-400' }
-              ].map(item => (
-                <div key={item.label} className="flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full ${item.color} border border-white`}></span>
-                  <span className="text-[10px] font-bold text-slate-500 uppercase">{item.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
-
       {loading && (
         <div className="absolute inset-0 z-20 bg-slate-50/50 backdrop-blur-[2px] flex flex-col items-center justify-center">
           <Loader2 className="animate-spin text-blue-600 mb-2" size={32} />
-          <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">Synchronizing Clusters...</p>
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Map Telemetry Sync...</p>
         </div>
       )}
-
-      {error && (
-        <div className="absolute inset-0 z-20 bg-red-50/50 backdrop-blur-sm flex flex-col items-center justify-center p-8 text-center">
-          <RefreshCw className="text-red-400 mb-4" size={48} />
-          <h3 className="text-lg font-bold text-slate-900 mb-2">Network Sync Interrupted</h3>
-          <p className="text-sm text-slate-500 max-w-xs mb-6">Unable to retrieve nationwide geospatial telemetry. Please verify your connection to the Ericsson backend.</p>
-          <button onClick={() => window.location.reload()} className="bg-red-600 text-white px-6 py-2 rounded-xl font-bold text-sm shadow-lg shadow-red-500/20">Retry Handshake</button>
-        </div>
-      )}
-
-      {!mini && !error && !loading && (
-        <div className="absolute top-6 right-6 z-10 flex flex-col gap-2">
-          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors" title="Zoom In"><ZoomIn size={18}/></button>
-          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors" title="Zoom Out"><ZoomOut size={18}/></button>
-          <button className="p-3 bg-white border border-slate-200 rounded-xl shadow-lg hover:bg-slate-50 transition-colors" title="Reset"><Maximize2 size={18}/></button>
-        </div>
-      )}
-
-      <svg ref={svgRef} className={`w-full h-full bg-slate-50 ${mini ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`} />
+      <svg ref={svgRef} className="w-full h-full bg-slate-50" />
     </div>
   );
 };
