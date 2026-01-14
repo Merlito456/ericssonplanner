@@ -3,6 +3,17 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 
+/**
+ * Robust Global Environment Polyfill
+ * Ensures process.env.API_KEY is accessible across all browser environments
+ * including Cloudflare Pages, without shadowing variables injected by the bundler.
+ */
+if (typeof window !== 'undefined') {
+  // Fix: Cast window to any to avoid type mismatch with the global 'process' variable which may be typed as NodeJS.Process
+  (window as any).process = (window as any).process || { env: {} };
+  (window as any).process.env = (window as any).process.env || {};
+}
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   console.error("Critical Error: Could not find root element with id 'root'.");
