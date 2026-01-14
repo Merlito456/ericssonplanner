@@ -37,7 +37,10 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
         dragging: !mini,
         scrollWheelZoom: !mini,
         doubleClickZoom: !mini,
-      }).setView([12.8797, 121.7740], mini ? 5 : 6); // Centered on Philippines
+        // Start centered on the Philippines
+        center: [12.8797, 121.7740],
+        zoom: mini ? 5 : 6,
+      });
 
       L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
@@ -46,7 +49,6 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
       }).addTo(mapRef.current);
 
       // Initialize MarkerClusterGroup instead of LayerGroup
-      // Only use clustering for the main map, not necessarily for the mini preview
       if (!mini && L.markerClusterGroup) {
         markersRef.current = L.markerClusterGroup({
           showCoverageOnHover: false,
@@ -57,15 +59,23 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
       } else {
         markersRef.current = L.layerGroup().addTo(mapRef.current);
       }
+
+      // CRITICAL: Leaflet needs to know the container size after it's rendered in the DOM.
+      // Small timeout ensures the browser has painted the container and calculated its height/width.
+      setTimeout(() => {
+        if (mapRef.current) {
+          mapRef.current.invalidateSize();
+        }
+      }, 100);
     }
 
-    // Update markers
+    // Update markers and adjust focus
     if (markersRef.current && mapRef.current) {
       markersRef.current.clearLayers();
 
-      sites.forEach(site => {
-        if (!site.lat || !site.lng) return;
-        
+      const validSites = (sites || []).filter(s => s.lat && s.lng);
+
+      validSites.forEach(site => {
         const color = getStatusColor(site.status);
         const iconSize = mini ? 10 : 14;
         
@@ -91,16 +101,42 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
         markersRef.current?.addLayer(marker);
       });
 
-      // Fit bounds if not mini and we have valid sites
-      const validSites = (sites || []).filter(s => s.lat && s.lng);
-      if (!mini && validSites.length > 0) {
-        const bounds = L.latLngBounds(validSites.map(s => [s.lat, s.lng]));
-        mapRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 12 });
+      // Adjust focus to cover the markers or reset to Philippines overview
+      if (!mini) {
+        if (validSites.length > 0) {
+          const bounds = L.latLngBounds(validSites.map(s => [s.lat, s.lng]));
+          // Use a small delay for fitBounds to ensure the map container size is fully ready
+          setTimeout(() => {
+            if (mapRef.current) {
+              mapRef.current.fitBounds(bounds, { 
+                padding: [40, 40], 
+                maxZoom: 12,
+                animate: true 
+              });
+            }
+          }, 150);
+        } else {
+          // Reset to default PH view if no markers
+          mapRef.current.setView([12.8797, 121.7740], 6);
+        }
       }
     }
 
+    // Handle window resize or container visibility changes
+    const resizeObserver = new ResizeObserver(() => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    });
+
+    if (mapContainerRef.current) {
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
     return () => {
-      // Cleanup is handled by map object persistence in ref
+      if (mapContainerRef.current) {
+        resizeObserver.unobserve(mapContainerRef.current);
+      }
     };
   }, [sites, mini, onSiteClick]);
 
@@ -112,6 +148,7 @@ const SiteMap: React.FC<SiteMapProps> = ({ sites, onSiteClick, mini = false }) =
       <div 
         ref={mapContainerRef} 
         className="w-full h-full bg-slate-50"
+        style={{ height: '100%', width: '100%' }}
       />
       {mini && (
         <div className="absolute top-3 right-3 z-[1000] bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg border border-slate-200 pointer-events-none">
