@@ -3,8 +3,12 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Site } from "../types.ts";
 
 export class GeminiService {
-  // Use recommended initialization with direct process.env.API_KEY access
-  private ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  private ai: GoogleGenAI;
+
+  constructor() {
+    // Fix: Always use process.env.API_KEY directly in the constructor as per SDK guidelines
+    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+  }
 
   async analyzeProjectStatus(sites: Site[]) {
     const summary = sites.map(s => ({
@@ -35,7 +39,8 @@ export class GeminiService {
       }
     });
 
-    return JSON.parse(response.text);
+    // Fix: Directly access the .text property of GenerateContentResponse
+    return JSON.parse(response.text || '{}');
   }
 
   async generateDeploymentSchedule(sites: Site[]) {
@@ -60,7 +65,8 @@ export class GeminiService {
         }
       }
     });
-    return JSON.parse(response.text);
+    // Fix: Directly access the .text property
+    return JSON.parse(response.text || '[]');
   }
 
   async getSwapPlan(site: Site) {
@@ -95,7 +101,8 @@ export class GeminiService {
       }
     });
 
-    return JSON.parse(response.text);
+    // Fix: Directly access the .text property
+    return JSON.parse(response.text || '{}');
   }
 }
 
