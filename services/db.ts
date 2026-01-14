@@ -39,8 +39,8 @@ const SESSION_KEY = 'ericsson_session_v1';
  *     id VARCHAR(50) PRIMARY KEY, -- SITE ID
  *     name VARCHAR(255) NOT NULL, -- SITE NAME
  *     region VARCHAR(100) NOT NULL,
- *     lat DECIMAL(10, 8) NOT NULL,
- *     lng DECIMAL(11, 8) NOT NULL,
+ *     lat DECIMAL(10, 8) NOT NULL, -- LATITUDE GPS
+ *     lng DECIMAL(11, 8) NOT NULL, -- LONGITUDE GPS
  *     current_vendor site_vendor NOT NULL,
  *     target_vendor site_vendor DEFAULT 'Ericsson',
  *     status site_status DEFAULT 'Pending',
