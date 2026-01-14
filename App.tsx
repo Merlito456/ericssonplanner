@@ -26,6 +26,100 @@ const DEFAULT_TASKS: DeploymentTask[] = [
   { id: '6', label: 'Acceptance Sign-off', isCompleted: false, assignedRole: 'Team Lead' },
 ];
 
+// Sub-components defined before App to ensure availability
+const NavItem: React.FC<{active: boolean, onClick: () => void, icon: React.ReactNode, label: string}> = ({active, onClick, icon, label}) => (
+  <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}>{icon}<span className="text-xs font-bold uppercase tracking-widest">{label}</span></button>
+);
+
+const StatusCard: React.FC<{icon: React.ReactNode, label: string, value: string, sub: string}> = ({icon, label, value, sub}) => (
+  <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200"><div className="flex justify-between items-start mb-6"><div className="p-3 bg-slate-50 rounded-2xl">{icon}</div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span></div><h3 className="text-4xl font-black text-slate-900">{value}</h3><div className="mt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">{sub}</div></div>
+);
+
+const EmptyState: React.FC<{onAction: () => void}> = ({onAction}) => (
+  <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-16 text-center">
+    <Database className="text-slate-300 mx-auto mb-6" size={48} />
+    <h3 className="text-xl font-bold text-slate-800 mb-2">Cluster empty</h3>
+    <button onClick={onAction} className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold mt-6 shadow-lg shadow-blue-500/20">Go to Repository</button>
+  </div>
+);
+
+const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      if (isLogin) {
+        const user = await dbService.login(email, password);
+        onAuth(user);
+      } else {
+        const user = await dbService.register(name, email, password);
+        onAuth(user);
+      }
+    } catch (err: any) {
+      setError(err.message || "An unexpected authentication error occurred.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="flex h-screen bg-white font-['Inter'] overflow-hidden">
+      <div className="hidden lg:flex flex-1 bg-slate-900 relative items-center justify-center p-20">
+         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1544652478-6653e09f18a2?auto=format&fit=crop&q=80')] opacity-20 bg-cover bg-center"></div>
+         <div className="relative z-10 text-white max-w-lg">
+           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-4xl font-black mb-10 shadow-2xl">E</div>
+           <h1 className="text-6xl font-black leading-tight mb-6">Nationwide Network Swap.</h1>
+           <p className="text-slate-400 text-xl leading-relaxed">Precision project management for the Ericsson-Globe infrastructure modernization initiative.</p>
+           <div className="mt-12 flex gap-12">
+             <div><div className="text-3xl font-bold text-blue-500 mb-1">2.4k</div><div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Active Sites</div></div>
+             <div><div className="text-3xl font-bold text-emerald-500 mb-1">99.9%</div><div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Uptime Target</div></div>
+           </div>
+         </div>
+      </div>
+      <div className="flex-1 flex items-center justify-center p-10 lg:p-24 bg-slate-50">
+        <div className="w-full max-w-md animate-in fade-in slide-in-from-right duration-700">
+           <div className="mb-10 text-center lg:text-left">
+             <h2 className="text-3xl font-black text-slate-900">{isLogin ? 'Sign In' : 'Create Account'}</h2>
+             <p className="text-slate-500 mt-2">{isLogin ? 'Access the planner dashboard' : 'Join the Ericsson deployment team'}</p>
+           </div>
+           <form onSubmit={handleSubmit} className="space-y-6">
+             {!isLogin && (
+               <div><label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Full Name</label>
+               <input type="text" required value={name} onChange={e=>setName(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="John Doe"/></div>
+             )}
+             <div><label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Enterprise Email</label>
+             <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="user@ericsson.com"/></div>
+             <div><label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Password</label>
+             <input type="password" required value={password} onChange={e=>setPassword(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="••••••••"/></div>
+             {error && <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-bold flex items-center gap-2"><AlertTriangle size={14}/> {error}</div>}
+             <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 transition-all">
+               {loading ? <Loader2 className="animate-spin" size={20}/> : <><Lock size={18}/> {isLogin ? 'Enter Planner' : 'Register Account'}</>}
+             </button>
+           </form>
+           <div className="mt-8 text-center text-slate-500 text-sm">
+             {isLogin ? "Don't have an account?" : "Already registered?"} 
+             <button onClick={() => setIsLogin(!isLogin)} className="ml-2 text-blue-600 font-bold hover:underline">
+               {isLogin ? 'Sign Up' : 'Sign In'}
+             </button>
+           </div>
+           <div className="mt-12 pt-8 border-t border-slate-200 flex justify-center gap-6">
+             <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2"><ShieldCheck size={12}/> Secure 256-bit</div>
+             <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2"><UserIcon size={12}/> SSO Integrated</div>
+           </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [sites, setSites] = useState<Site[]>([]);
@@ -45,17 +139,18 @@ const App: React.FC = () => {
   // Auth & Database Initialization
   useEffect(() => {
     const init = async () => {
-      const user = dbService.getCurrentUser();
-      if (user) {
-        setCurrentUser(user);
-        try {
+      try {
+        const user = dbService.getCurrentUser();
+        if (user) {
+          setCurrentUser(user);
           const data = await dbService.getSites();
           setSites(data);
-        } catch (error) {
-          console.error("DB Load Error", error);
         }
+      } catch (error) {
+        console.error("Initialization Error:", error);
+      } finally {
+        setIsInitialLoading(false);
       }
-      setIsInitialLoading(false);
     };
     init();
   }, []);
@@ -87,7 +182,6 @@ const App: React.FC = () => {
     { day: 'Sun', target: 0, actual: 0 },
   ], [stats.completed, sites.length]);
 
-  // Fix: Define filteredSites to resolve the "Cannot find name 'filteredSites'" error on line 331
   const filteredSites = useMemo(() => {
     const q = searchQuery.toLowerCase();
     return sites.filter(site => 
@@ -158,6 +252,8 @@ const App: React.FC = () => {
       await dbService.upsertSite(updatedSite);
       setSites(prev => prev.map(s => s.id === site.id ? updatedSite : s));
       setSelectedSite(updatedSite);
+    } catch (error) {
+      console.error("Workflow Generation failed", error);
     } finally {
       setLoadingWorkflow(false);
       setIsDBOperation(false);
@@ -175,9 +271,12 @@ const App: React.FC = () => {
     else if (progress > 0) newStatus = SiteStatus.IN_PROGRESS;
     const updatedSite = { ...site, tasks: newTasks, progress, status: newStatus };
     setIsDBOperation(true);
-    await dbService.upsertSite(updatedSite);
-    setSites(prev => prev.map(s => s.id === siteId ? updatedSite : s));
-    setIsDBOperation(false);
+    try {
+      await dbService.upsertSite(updatedSite);
+      setSites(prev => prev.map(s => s.id === siteId ? updatedSite : s));
+    } finally {
+      setIsDBOperation(false);
+    }
   };
 
   const handleSaveSite = async () => {
@@ -203,10 +302,13 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     if (window.confirm('Delete this site from the database?')) {
       setIsDBOperation(true);
-      await dbService.deleteSite(id);
-      setSites(prev => prev.filter(s => s.id !== id));
-      setSelectedSite(null);
-      setIsDBOperation(false);
+      try {
+        await dbService.deleteSite(id);
+        setSites(prev => prev.filter(s => s.id !== id));
+        setSelectedSite(null);
+      } finally {
+        setIsDBOperation(false);
+      }
     }
   };
 
@@ -313,7 +415,7 @@ const App: React.FC = () => {
                             { name: 'Blocked', value: stats.highRisk },
                             { name: 'Pending', value: stats.total - stats.completed - stats.inProgress - stats.highRisk },
                           ].filter(d => d.value > 0)} innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
-                            {COLORS.map((_, index) => <Cell key={` cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                            {COLORS.map((_, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
                           </Pie>
                           <Tooltip />
                         </PieChart>
@@ -421,14 +523,14 @@ const App: React.FC = () => {
             <div className="w-full max-w-2xl h-full bg-white shadow-2xl animate-in slide-in-from-right duration-500 overflow-y-auto relative z-10 p-10">
               {(isDBOperation || loadingWorkflow) && <div className="absolute inset-0 bg-white/60 flex items-center justify-center z-20"><Loader2 className="animate-spin text-blue-600" size={48} /></div>}
               <div className="flex justify-between items-start mb-10">
-                <div><span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{modalMode.toUpperCase()} NODE</span><h2 className="text-4xl font-black text-slate-900 mt-2">{modalMode === 'view' ? selectedSite.name : <input value={formData.name} onChange={e=>setFormData({...formData, name:e.target.value})} className="border-b focus:border-blue-500 outline-none w-full"/>}</h2></div>
+                <div><span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">{modalMode.toUpperCase()} NODE</span><h2 className="text-4xl font-black text-slate-900 mt-2">{modalMode === 'view' ? selectedSite.name : <input value={formData.name || ''} onChange={e=>setFormData({...formData, name:e.target.value})} className="border-b focus:border-blue-500 outline-none w-full"/>}</h2></div>
                 <button onClick={() => setSelectedSite(null)} className="p-3 bg-slate-100 rounded-2xl"><X size={24}/></button>
               </div>
 
               <div className="space-y-12">
                 <div className="grid grid-cols-2 gap-6">
-                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100"><div className="text-[10px] text-slate-400 font-black uppercase mb-2">Vendor</div><div className="font-bold text-lg">{modalMode === 'view' ? selectedSite.currentVendor : <select className="bg-transparent font-bold w-full" value={formData.currentVendor} onChange={e=>setFormData({...formData, currentVendor: e.target.value as any})}><option value={Vendor.HUAWEI}>Huawei</option><option value={Vendor.NOKIA}>Nokia</option></select>}</div></div>
-                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100"><div className="text-[10px] text-slate-400 font-black uppercase mb-2">Risk</div><div className="font-bold text-lg">{modalMode === 'view' ? selectedSite.riskLevel : <select className="bg-transparent font-bold w-full" value={formData.riskLevel} onChange={e=>setFormData({...formData, riskLevel: e.target.value as any})}><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>}</div></div>
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100"><div className="text-[10px] text-slate-400 font-black uppercase mb-2">Vendor</div><div className="font-bold text-lg">{modalMode === 'view' ? selectedSite.currentVendor : <select className="bg-transparent font-bold w-full outline-none" value={formData.currentVendor} onChange={e=>setFormData({...formData, currentVendor: e.target.value as any})}><option value={Vendor.HUAWEI}>Huawei</option><option value={Vendor.NOKIA}>Nokia</option></select>}</div></div>
+                  <div className="p-6 bg-slate-50 rounded-3xl border border-slate-100"><div className="text-[10px] text-slate-400 font-black uppercase mb-2">Risk</div><div className="font-bold text-lg">{modalMode === 'view' ? selectedSite.riskLevel : <select className="bg-transparent font-bold w-full outline-none" value={formData.riskLevel} onChange={e=>setFormData({...formData, riskLevel: e.target.value as any})}><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option></select>}</div></div>
                 </div>
 
                 {modalMode === 'view' && isAdmin && (
@@ -437,19 +539,19 @@ const App: React.FC = () => {
                     {selectedSite.technicalInstructions ? (
                       <div className="space-y-4">
                         {selectedSite.technicalInstructions.steps.map((s, i) => (<div key={i} className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5"><div className="text-blue-400 font-black text-xs">{i+1}.</div><div className="text-sm font-medium">{s.task}</div></div>))}
-                        <button onClick={() => handleGenerateWorkflow(selectedSite)} className="text-[10px] text-blue-400 font-black uppercase mt-4 flex items-center gap-1"><RefreshCw size={12}/> Rebuild Flow</button>
+                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="text-[10px] text-blue-400 font-black uppercase mt-4 flex items-center gap-1"><RefreshCw size={12}/> Rebuild Flow</button>
                       </div>
                     ) : (
-                      <div className="text-center py-6"><p className="text-slate-500 text-sm mb-6">No dossier linked. Generate hardware-specific instructions now.</p><button onClick={() => handleGenerateWorkflow(selectedSite)} className="w-full bg-blue-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2"><BrainCircuit size={18}/> Synthesize & Sync</button></div>
+                      <div className="text-center py-6"><p className="text-slate-500 text-sm mb-6">No dossier linked. Generate hardware-specific instructions now.</p><button onClick={() => handleGenerateWorkflow(selectedSite!)} className="w-full bg-blue-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all hover:bg-blue-500"><BrainCircuit size={18}/> Synthesize & Sync</button></div>
                     )}
                   </div>
                 )}
 
                 <div className="flex gap-4 pb-10">
                    {modalMode === 'view' ? (
-                     <>{isAdmin && <button onClick={() => setModalMode('edit')} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold">Edit metadata</button>}<button onClick={() => alert("Printing...")} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold">Print Ops Sheet</button></>
+                     <>{isAdmin && <button onClick={() => setModalMode('edit')} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all">Edit metadata</button>}<button onClick={() => alert("Printing...")} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all">Print Ops Sheet</button></>
                    ) : (
-                     <><button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold">Commit Sync</button><button onClick={() => setModalMode('view')} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-bold">Cancel</button></>
+                     <><button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all">Commit Sync</button><button onClick={() => setModalMode('view')} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all">Cancel</button></>
                    )}
                 </div>
               </div>
@@ -460,98 +562,5 @@ const App: React.FC = () => {
     </div>
   );
 };
-
-const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      if (isLogin) {
-        const user = await dbService.login(email, password);
-        onAuth(user);
-      } else {
-        const user = await dbService.register(name, email, password);
-        onAuth(user);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="flex h-screen bg-white font-['Inter'] overflow-hidden">
-      <div className="hidden lg:flex flex-1 bg-slate-900 relative items-center justify-center p-20">
-         <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1544652478-6653e09f18a2?auto=format&fit=crop&q=80')] opacity-20 bg-cover bg-center"></div>
-         <div className="relative z-10 text-white max-w-lg">
-           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-4xl font-black mb-10 shadow-2xl">E</div>
-           <h1 className="text-6xl font-black leading-tight mb-6">Nationwide Network Swap.</h1>
-           <p className="text-slate-400 text-xl leading-relaxed">Precision project management for the Ericsson-Globe infrastructure modernization initiative.</p>
-           <div className="mt-12 flex gap-12">
-             <div><div className="text-3xl font-bold text-blue-500 mb-1">2.4k</div><div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Active Sites</div></div>
-             <div><div className="text-3xl font-bold text-emerald-500 mb-1">99.9%</div><div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Uptime Target</div></div>
-           </div>
-         </div>
-      </div>
-      <div className="flex-1 flex items-center justify-center p-10 lg:p-24 bg-slate-50">
-        <div className="w-full max-w-md animate-in fade-in slide-in-from-right duration-700">
-           <div className="mb-10 text-center lg:text-left">
-             <h2 className="text-3xl font-black text-slate-900">{isLogin ? 'Sign In' : 'Create Account'}</h2>
-             <p className="text-slate-500 mt-2">{isLogin ? 'Access the planner dashboard' : 'Join the Ericsson deployment team'}</p>
-           </div>
-           <form onSubmit={handleSubmit} className="space-y-6">
-             {!isLogin && (
-               <div><label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Full Name</label>
-               <input type="text" required value={name} onChange={e=>setName(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="John Doe"/></div>
-             )}
-             <div><label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Enterprise Email</label>
-             <input type="email" required value={email} onChange={e=>setEmail(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="user@ericsson.com"/></div>
-             <div><label className="text-[10px] font-black uppercase text-slate-400 mb-2 block">Password</label>
-             <input type="password" required value={password} onChange={e=>setPassword(e.target.value)} className="w-full p-4 bg-white border border-slate-200 rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm" placeholder="••••••••"/></div>
-             {error && <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-xs font-bold flex items-center gap-2"><AlertTriangle size={14}/> {error}</div>}
-             <button type="submit" disabled={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-2xl font-black shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 transition-all">
-               {loading ? <Loader2 className="animate-spin" size={20}/> : <><Lock size={18}/> {isLogin ? 'Enter Planner' : 'Register Account'}</>}
-             </button>
-           </form>
-           <div className="mt-8 text-center text-slate-500 text-sm">
-             {isLogin ? "Don't have an account?" : "Already registered?"} 
-             <button onClick={() => setIsLogin(!isLogin)} className="ml-2 text-blue-600 font-bold hover:underline">
-               {isLogin ? 'Sign Up' : 'Sign In'}
-             </button>
-           </div>
-           <div className="mt-12 pt-8 border-t border-slate-200 flex justify-center gap-6">
-             <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2"><ShieldCheck size={12}/> Secure 256-bit</div>
-             <div className="text-[9px] font-black text-slate-300 uppercase tracking-widest flex items-center gap-2"><UserIcon size={12}/> SSO Integrated</div>
-           </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const NavItem: React.FC<{active: boolean, onClick: () => void, icon: React.ReactNode, label: string}> = ({active, onClick, icon, label}) => (
-  <button onClick={onClick} className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${active ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30' : 'hover:bg-slate-800 text-slate-400 hover:text-white'}`}>{icon}<span className="text-xs font-bold uppercase tracking-widest">{label}</span></button>
-);
-
-const StatusCard: React.FC<{icon: React.ReactNode, label: string, value: string, sub: string}> = ({icon, label, value, sub}) => (
-  <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200"><div className="flex justify-between items-start mb-6"><div className="p-3 bg-slate-50 rounded-2xl">{icon}</div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</span></div><h3 className="text-4xl font-black text-slate-900">{value}</h3><div className="mt-2 text-[10px] font-black text-slate-400 uppercase tracking-widest">{sub}</div></div>
-);
-
-const EmptyState: React.FC<{onAction: () => void}> = ({onAction}) => (
-  <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-16 text-center">
-    <Database className="text-slate-300 mx-auto mb-6" size={48} />
-    <h3 className="text-xl font-bold text-slate-800 mb-2">Cluster empty</h3>
-    <button onClick={onAction} className="bg-blue-600 text-white px-8 py-3 rounded-2xl font-bold mt-6 shadow-lg shadow-blue-500/20">Go to Repository</button>
-  </div>
-);
 
 export default App;
