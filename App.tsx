@@ -143,18 +143,18 @@ const App: React.FC = () => {
   const stats = useMemo(() => {
     const data = sites || [];
     const total = data.length;
-    const completed = data.filter(s => s.status === SiteStatus.COMPLETED).length;
+    const completed = data.filter(s => s?.status === SiteStatus.COMPLETED).length;
     const progress = total > 0 ? (completed / total) * 100 : 0;
-    const highRisk = data.filter(s => s.risk_level === RiskLevel.High).length;
-    const inProgress = data.filter(s => s.status === SiteStatus.IN_PROGRESS).length;
+    const highRisk = data.filter(s => s?.risk_level === RiskLevel.High).length;
+    const inProgress = data.filter(s => s?.status === SiteStatus.IN_PROGRESS).length;
     return { total, completed, progress, highRisk, inProgress };
   }, [sites]);
 
   const filteredSites = useMemo(() => {
-    const q = searchQuery.toLowerCase().trim();
+    const q = (searchQuery || '').toLowerCase().trim();
     return (sites || []).filter(s => 
-      (s.id?.toLowerCase() || '').includes(q) || 
-      (s.name?.toLowerCase() || '').includes(q)
+      (s?.id?.toLowerCase() || '').includes(q) || 
+      (s?.name?.toLowerCase() || '').includes(q)
     );
   }, [sites, searchQuery]);
 
@@ -165,11 +165,12 @@ const App: React.FC = () => {
   };
 
   const handleSaveSite = async () => {
-    if (!isAdmin) return;
+    if (!isAdmin || isDBOperation) return;
     if (!formData.id) {
       alert("Error: Site ID is required for synchronization.");
       return;
     }
+    
     setIsDBOperation(true);
     try {
       const siteToSave = {
@@ -186,10 +187,13 @@ const App: React.FC = () => {
       
       await dbService.upsertSite(siteToSave);
       const updatedData = await dbService.getSites();
+      
+      // Update state in batch to avoid inconsistent renders
       setSites(Array.isArray(updatedData) ? updatedData : []);
       setSelectedSite(null);
       setFormData({});
     } catch (e) { 
+      console.error(e);
       alert("Critical: Sync operation aborted due to database conflict."); 
     } finally { 
       setIsDBOperation(false); 
@@ -647,7 +651,7 @@ const App: React.FC = () => {
                     {isDBOperation && <Loader2 className="animate-spin" size={20} />}
                     Commit to Database
                   </button>
-                  <button onClick={() => setSelectedSite(null)} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-black hover:bg-slate-50 transition-colors text-slate-600">
+                  <button onClick={() => { setSelectedSite(null); setFormData({}); }} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-black hover:bg-slate-50 transition-colors text-slate-600">
                     Cancel
                   </button>
                 </div>
