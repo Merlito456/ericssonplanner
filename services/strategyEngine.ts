@@ -1,5 +1,5 @@
 
-import { Site, SiteStatus, Vendor, RiskLevel } from "../types.ts";
+import { Site, SiteStatus, Vendor, RiskLevel, SiteMilestones } from "../types.ts";
 
 /**
  * Local Strategy Engine
@@ -17,7 +17,6 @@ export class StrategyEngine {
 
     const completed = sites.filter(s => s.status === SiteStatus.COMPLETED).length;
     const blocked = sites.filter(s => s.status === SiteStatus.BLOCKED).length;
-    // Fix: Use correct property name risk_level
     const highRisk = sites.filter(s => s.risk_level === RiskLevel.High).length;
     const healthScore = Math.round(((completed + (total - blocked - highRisk) * 0.5) / total) * 100);
 
@@ -33,7 +32,6 @@ export class StrategyEngine {
       "Fiber backhaul capacity limitations during dual-stack operation."
     ];
 
-    // Fix: Use correct property name risk_level
     const priorities = sites
       .filter(s => s.status !== SiteStatus.COMPLETED)
       .sort((a, b) => (b.risk_level === RiskLevel.High ? 1 : -1))
@@ -65,15 +63,36 @@ export class StrategyEngine {
       });
   }
 
+  /**
+   * Generates a full milestone plan starting from a specific date.
+   */
+  async generateMilestonePlan(startDateStr?: string): Promise<SiteMilestones> {
+    const start = startDateStr ? new Date(startDateStr) : new Date();
+    const formatDate = (date: Date) => date.toISOString().split('T')[0];
+
+    const addDays = (d: number) => {
+      const newDate = new Date(start);
+      newDate.setDate(start.getDate() + d);
+      return formatDate(newDate);
+    };
+
+    return {
+      survey: { plan: addDays(0), actual: '' },
+      survey_report: { plan: addDays(2), actual: '' },
+      installation: { plan: addDays(7), actual: '' },
+      integration: { plan: addDays(8), actual: '' },
+      completion_report: { plan: addDays(10), actual: '' },
+      site_close: { plan: addDays(12), actual: '' },
+    };
+  }
+
   async getSwapPlan(site: Site) {
     await new Promise(resolve => setTimeout(resolve, 600));
     
-    // Fix: Use correct property name current_vendor
     const isHuawei = site.current_vendor === Vendor.HUAWEI;
     
     const steps = [
       { task: "On-site safety briefing and PPE check", estimatedDuration: "30m", safetyPrecaution: "Climbing gear inspection" },
-      // Fix: Use correct property name current_vendor
       { task: `De-commissioning of legacy ${site.current_vendor} ${isHuawei ? 'BBU3900' : 'Flexi'} cabinet`, estimatedDuration: "2h", safetyPrecaution: "Power isolation protocols" },
       { task: "Installation of Ericsson Baseband 6630 and Router 6000", estimatedDuration: "3h", safetyPrecaution: "Static discharge prevention" },
       { task: "Radio 4415 installation and fiber re-termination", estimatedDuration: "4h", safetyPrecaution: "RF radiation safety distance" },
