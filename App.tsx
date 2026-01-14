@@ -155,7 +155,7 @@ const GanttChart: React.FC<{sites: Site[]}> = ({sites}) => {
       <div className="overflow-x-auto">
         <div className="min-w-[1200px] p-6 space-y-10">
           {sites.map(site => {
-            // Defensive access to milestones
+            if (!site) return null;
             const ms = site.milestones || DEFAULT_MILESTONES;
             return (
               <div key={site.id} className="space-y-3">
@@ -165,7 +165,7 @@ const GanttChart: React.FC<{sites: Site[]}> = ({sites}) => {
                 </div>
                 <div className="grid grid-cols-6 gap-3">
                   {milestonesList.map(m => {
-                    const data = (ms as any)[m.key] || { plan: '', actual: '' };
+                    const data = (ms as any)?.[m.key] || { plan: '', actual: '' };
                     return (
                       <div key={m.key} className="space-y-2">
                         <div className="text-[9px] font-black text-slate-400 uppercase tracking-tighter text-center">{m.label}</div>
@@ -228,7 +228,7 @@ const SpreadsheetTable: React.FC<{sites: Site[]}> = ({sites}) => {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {sites.map(s => {
-              // Defensive access to milestones
+              if (!s) return null;
               const ms = s.milestones || DEFAULT_MILESTONES;
               return (
                 <tr key={s.id} className="hover:bg-slate-50 transition-colors">
@@ -239,7 +239,7 @@ const SpreadsheetTable: React.FC<{sites: Site[]}> = ({sites}) => {
                     </div>
                   </td>
                   {milestoneKeys.map(m => {
-                    const data = (ms as any)[m.key] || { plan: '', actual: '' };
+                    const data = (ms as any)?.[m.key] || { plan: '', actual: '' };
                     return (
                       <React.Fragment key={m.key}>
                         <td className="px-2 py-4 text-[10px] font-mono text-center border-r border-slate-100 text-slate-500">{data.plan || '--'}</td>
@@ -370,21 +370,6 @@ const App: React.FC = () => {
     setFormData({ ...formData, milestones: currentMilestones });
   };
 
-  const handleEquipmentChange = (type: 'swapped' | 'install', field: keyof Equipment, value: string) => {
-    const currentEquip = [...(formData.equipment || [])];
-    const vendor = type === 'install' ? Vendor.ERICSSON : (formData.current_vendor as Vendor || Vendor.HUAWEI);
-    const targetType = type === 'install' ? 'Ericsson-Module' : 'Legacy-Module';
-    
-    let equipIdx = currentEquip.findIndex(e => e.type === targetType);
-    if (equipIdx === -1) {
-      currentEquip.push({ id: Math.random().toString(36).substr(2, 9), site_id: formData.id || '', type: targetType, vendor, model: '', serial_number: '' });
-      equipIdx = currentEquip.length - 1;
-    }
-    
-    (currentEquip[equipIdx] as any)[field] = value;
-    setFormData({ ...formData, equipment: currentEquip });
-  };
-
   const handleTaskToggle = async (siteId: string, taskId: string) => {
     const data = sites || [];
     const site = data.find(s => s.id === siteId);
@@ -406,7 +391,44 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAutoSchedule = async () => {
+    if (!isAdmin) return;
+    setScheduling(true);
+    try {
+      const schedule = await strategyEngine.generateDeploymentSchedule(sites);
+      const updatedSites = sites.map(s => {
+        const item = schedule.find((sch: any) => sch.siteId === s.id);
+        if (item) return { ...s, scheduled_date: item.scheduledDate, status: SiteStatus.PLANNED };
+        return s;
+      });
+      for (const site of updatedSites) await dbService.upsertSite(site);
+      setSites(updatedSites);
+    } catch (error: any) {
+      console.error(error);
+      alert("Scheduling error: " + error.message);
+    } finally {
+      setScheduling(false);
+    }
+  };
+
+  const handleRunAiAnalysis = async () => {
+    if (!isAdmin) return;
+    setLoadingAi(true);
+    try {
+      const result = await strategyEngine.analyzeProjectStatus(sites);
+      setAiAnalysis(result);
+      setActiveTab('ai');
+    } catch (error: any) {
+      console.error(error);
+      alert("Analysis Failed.");
+    } finally {
+      setLoadingAi(false);
+    }
+  };
+
   if (!currentUser) return <AuthPage onAuth={u => { setCurrentUser(u); dbService.getSites().then(data => setSites(Array.isArray(data) ? data : [])); }} />;
+
+  const pendingSites = sites.filter(s => s.status !== SiteStatus.COMPLETED);
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-['Inter']">
@@ -419,8 +441,10 @@ const App: React.FC = () => {
           <NavItem active={activeTab === 'monitoring'} onClick={() => setActiveTab('monitoring')} icon={<LayoutDashboard size={18}/>} label="Dashboard" />
           <NavItem active={activeTab === 'sites'} onClick={() => setActiveTab('sites')} icon={<Database size={18}/>} label="Inventory" />
           <NavItem active={activeTab === 'track'} onClick={() => setActiveTab('track')} icon={<ListFilter size={18}/>} label="Milestones" />
+          <NavItem active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={<Calendar size={18}/>} label="Planning" />
           <NavItem active={activeTab === 'actual'} onClick={() => setActiveTab('actual')} icon={<PlayCircle size={18}/>} label="Field Ops" />
           <NavItem active={activeTab === 'map'} onClick={() => setActiveTab('map')} icon={<Globe size={18}/>} label="Deployment Map" />
+          {isAdmin && <NavItem active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<Cpu size={18}/>} label="Cognitive Core" />}
         </nav>
         <div className="p-4 border-t border-slate-800">
           <button onClick={() => { dbService.logout(); setCurrentUser(null); }} className="w-full flex items-center justify-center gap-2 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"><LogOut size={14}/> Sign Out</button>
@@ -542,8 +566,31 @@ const App: React.FC = () => {
                    </button>
                  </div>
               </div>
-
               {trackView === 'table' ? <SpreadsheetTable sites={filteredSites} /> : <GanttChart sites={filteredSites} />}
+            </div>
+          )}
+
+          {activeTab === 'plan' && (
+            <div className="animate-in fade-in duration-500">
+               <div className="flex justify-between items-center mb-8">
+                  <div><h2 className="text-2xl font-bold text-slate-900">Batch Planning</h2><p className="text-slate-500 text-sm mt-1">Intelligent Local Offline Scheduler</p></div>
+                  {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all disabled:opacity-50">{scheduling ? <Loader2 className="animate-spin" size={18}/> : <Calendar size={18}/>} Local Batch Plan</button>}
+               </div>
+               <div className="space-y-4">
+                 {pendingSites.length === 0 ? (
+                    <div className="p-20 text-center bg-white border border-dashed border-slate-200 rounded-3xl">
+                       <Calendar className="text-slate-200 mx-auto mb-4" size={48} />
+                       <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No sites pending scheduling.</p>
+                    </div>
+                 ) : (
+                   pendingSites.map(site => (
+                    <div key={site.id} className="bg-white p-6 rounded-2xl border border-slate-200 flex items-center justify-between group hover:border-blue-500 transition-all cursor-pointer" onClick={() => handleOpenSite(site, 'view')}>
+                      <div className="flex items-center gap-6"><div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center font-black group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">{site?.id?.slice(0,3) || '??'}</div><div><h4 className="font-bold text-slate-900">{site.name}</h4><div className="text-[10px] text-slate-400 font-bold uppercase">{site.id} • {site.region}</div></div></div>
+                      <div className="flex items-center gap-8"><div className="text-right"><div className="text-[10px] text-slate-400 font-bold uppercase mb-1">Deployment Date</div><div className="text-sm font-bold text-slate-700">{site.scheduled_date || 'TBD'}</div></div><button className="p-3 bg-slate-50 rounded-xl group-hover:bg-blue-600 group-hover:text-white transition-all"><ChevronRight size={18}/></button></div>
+                    </div>
+                   ))
+                 )}
+               </div>
             </div>
           )}
 
@@ -576,6 +623,58 @@ const App: React.FC = () => {
           )}
 
           {activeTab === 'map' && <SiteMap sites={sites || []} onSiteClick={s => handleOpenSite(s, 'view')} />}
+
+          {activeTab === 'ai' && isAdmin && (
+            <div className="animate-in slide-in-from-right-4 duration-500">
+               <div className="mb-8 flex items-center justify-between">
+                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><Cpu className="text-blue-600" size={28} /> Strategy Core</h2><p className="text-slate-500 text-sm mt-1">Advanced offline analysis of nodal telemetry</p></div>
+                  <button onClick={handleRunAiAnalysis} disabled={loadingAi} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} Synthesize Data</button>
+               </div>
+               
+               {loadingAi && (
+                 <div className="bg-white border border-slate-200 rounded-3xl p-20 text-center">
+                    <Loader2 className="animate-spin text-blue-600 mx-auto mb-6" size={48} />
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Engaging Cognitive Logic Engine...</h3>
+                    <p className="text-sm text-slate-500">Calculating regional risk density and hardware dependency chains...</p>
+                 </div>
+               )}
+
+               {aiAnalysis && !loadingAi && (
+                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div className="bg-slate-900 text-white p-8 rounded-3xl shadow-xl">
+                      <h4 className="font-bold text-lg text-blue-400 mb-6 flex items-center gap-2"><Terminal size={20}/> Technical Insights</h4>
+                      <ul className="space-y-6">
+                        {(aiAnalysis.strategicInsights || []).map((insight: string, idx: number) => (
+                          <li key={idx} className="flex gap-4"><div className="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-blue-500"></div><p className="text-slate-300 text-sm leading-relaxed">{insight}</p></li>
+                        ))}
+                      </ul>
+                      <div className="mt-10 pt-8 border-t border-white/10">
+                         <h5 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Risk Management Vectors</h5>
+                         <div className="space-y-3">
+                           {(aiAnalysis.riskMitigation || [])?.map((risk: string, i: number) => (
+                             <div key={i} className="flex items-center gap-3 p-3 bg-white/5 rounded-xl text-xs text-slate-400 border border-white/5"><Info size={14} className="text-amber-500"/> {risk}</div>
+                           ))}
+                         </div>
+                      </div>
+                    </div>
+                    <div className="bg-gradient-to-br from-blue-600 to-indigo-700 p-8 rounded-3xl text-white flex flex-col items-center justify-center text-center shadow-2xl">
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] mb-4">Rollout Health Gradient</div>
+                      <div className="text-8xl font-black mb-4 tracking-tighter">{aiAnalysis.projectHealth || '0%'}</div>
+                      <div className="w-full max-w-xs bg-white/20 h-3 rounded-full overflow-hidden">
+                        <div className="bg-white h-full transition-all duration-1000" style={{width: aiAnalysis.projectHealth || '0%'}}></div>
+                      </div>
+                      <p className="mt-6 text-[10px] font-black uppercase text-blue-100 tracking-[0.3em]">Computed via Local Cognitive Core</p>
+                    </div>
+                 </div>
+               )}
+               {!aiAnalysis && !loadingAi && (
+                 <div className="bg-white border-2 border-dashed border-slate-200 rounded-3xl p-20 text-center">
+                    <Cpu className="text-slate-200 mx-auto mb-4" size={48} />
+                    <p className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">Strategy analysis idle. Run synthesis to generate report.</p>
+                 </div>
+               )}
+            </div>
+          )}
         </div>
 
         {selectedSite && (
