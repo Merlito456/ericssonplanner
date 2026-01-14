@@ -661,11 +661,11 @@ const App: React.FC = () => {
                     </div>
                   </div>
                   {modalMode === 'view' && (
-                    <div className="h-40 w-full rounded-2xl bg-slate-100 overflow-hidden relative border border-slate-200">
-                       <div className="absolute inset-0 flex items-center justify-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Interactive Plot Active</div>
-                       <div className="absolute bottom-4 right-4 flex gap-2">
-                          <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedSite.coordinates.lat},${selectedSite.coordinates.lng}`, '_blank')} className="px-3 py-1.5 bg-white shadow-sm border border-slate-200 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-slate-50">View on External Map</button>
-                       </div>
+                    <div className="w-full relative">
+                      <SiteMap sites={[selectedSite]} onSiteClick={() => {}} mini={true} />
+                      <div className="absolute bottom-4 right-4 z-10">
+                        <button onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${selectedSite.coordinates.lat},${selectedSite.coordinates.lng}`, '_blank')} className="px-4 py-2 bg-white/90 backdrop-blur-sm shadow-xl border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-white transition-all">Launch Field GPS</button>
+                      </div>
                     </div>
                   )}
                 </div>
