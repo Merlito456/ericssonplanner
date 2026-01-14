@@ -1,5 +1,5 @@
 
-import { Site, SiteStatus, Vendor } from "../types.ts";
+import { Site, SiteStatus, Vendor, RiskLevel } from "../types.ts";
 
 /**
  * Local Strategy Engine
@@ -17,7 +17,8 @@ export class StrategyEngine {
 
     const completed = sites.filter(s => s.status === SiteStatus.COMPLETED).length;
     const blocked = sites.filter(s => s.status === SiteStatus.BLOCKED).length;
-    const highRisk = sites.filter(s => s.riskLevel === 'High').length;
+    // Fix: Use correct property name risk_level
+    const highRisk = sites.filter(s => s.risk_level === RiskLevel.High).length;
     const healthScore = Math.round(((completed + (total - blocked - highRisk) * 0.5) / total) * 100);
 
     const insights = [
@@ -32,11 +33,12 @@ export class StrategyEngine {
       "Fiber backhaul capacity limitations during dual-stack operation."
     ];
 
+    // Fix: Use correct property name risk_level
     const priorities = sites
       .filter(s => s.status !== SiteStatus.COMPLETED)
-      .sort((a, b) => (b.riskLevel === 'High' ? 1 : -1))
+      .sort((a, b) => (b.risk_level === RiskLevel.High ? 1 : -1))
       .slice(0, 3)
-      .map(s => `Site ${s.id}: ${s.name} (${s.riskLevel} Risk)`);
+      .map(s => `Site ${s.id}: ${s.name} (${s.risk_level} Risk)`);
 
     return {
       strategicInsights: insights,
@@ -66,11 +68,13 @@ export class StrategyEngine {
   async getSwapPlan(site: Site) {
     await new Promise(resolve => setTimeout(resolve, 600));
     
-    const isHuawei = site.currentVendor === Vendor.HUAWEI;
+    // Fix: Use correct property name current_vendor
+    const isHuawei = site.current_vendor === Vendor.HUAWEI;
     
     const steps = [
       { task: "On-site safety briefing and PPE check", estimatedDuration: "30m", safetyPrecaution: "Climbing gear inspection" },
-      { task: `De-commissioning of legacy ${site.currentVendor} ${isHuawei ? 'BBU3900' : 'Flexi'} cabinet`, estimatedDuration: "2h", safetyPrecaution: "Power isolation protocols" },
+      // Fix: Use correct property name current_vendor
+      { task: `De-commissioning of legacy ${site.current_vendor} ${isHuawei ? 'BBU3900' : 'Flexi'} cabinet`, estimatedDuration: "2h", safetyPrecaution: "Power isolation protocols" },
       { task: "Installation of Ericsson Baseband 6630 and Router 6000", estimatedDuration: "3h", safetyPrecaution: "Static discharge prevention" },
       { task: "Radio 4415 installation and fiber re-termination", estimatedDuration: "4h", safetyPrecaution: "RF radiation safety distance" },
       { task: "Call test and Core Network integration", estimatedDuration: "2h", safetyPrecaution: "Data session verification" }
