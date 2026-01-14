@@ -9,11 +9,11 @@ import {
   Terminal, X, Calendar, PlayCircle, Clock, ListTodo, TrendingUp, 
   Zap, Loader2, CheckCircle, FileText, Plus, Trash2, Edit2, Save, 
   History, MessageSquare, Radio, Server, ShieldCheck, RefreshCw, LogOut, Lock, User as UserIcon,
-  MapPin, Navigation, Info, Wifi, WifiOff, ExternalLink, Key
+  MapPin, Navigation, Info, Wifi, WifiOff, Cpu
 } from 'lucide-react';
 import { Site, SiteStatus, Vendor, DeploymentTask, Equipment, User, UserRole } from './types.ts';
 import SiteMap from './components/SiteMap.tsx';
-import { geminiService } from './services/gemini.ts';
+import { strategyEngine } from './services/strategyEngine.ts';
 import { dbService } from './services/db.ts';
 
 const COLORS = ['#10b981', '#3b82f6', '#ef4444', '#f59e0b', '#94a3b8'];
@@ -69,7 +69,7 @@ const AuthPage: React.FC<{onAuth: (user: User) => void}> = ({onAuth}) => {
          <div className="relative z-10 text-white max-w-lg">
            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-4xl font-black mb-10 shadow-2xl">E</div>
            <h1 className="text-6xl font-black leading-tight mb-6">Nationwide Network Swap.</h1>
-           <p className="text-slate-400 text-xl leading-relaxed">Precision project management for the Ericsson-Globe infrastructure modernization initiative.</p>
+           <p className="text-slate-400 text-xl leading-relaxed">Precision offline project management for the Ericsson-Globe infrastructure modernization initiative.</p>
          </div>
       </div>
       <div className="flex-1 flex items-center justify-center p-10 bg-slate-50">
@@ -112,14 +112,10 @@ const App: React.FC = () => {
   
   const [aiAnalysis, setAiAnalysis] = useState<any>(null);
   const [loadingAi, setLoadingAi] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
   const [scheduling, setScheduling] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [loadingWorkflow, setLoadingWorkflow] = useState(false);
   const [isDBOperation, setIsDBOperation] = useState(false);
-
-  // Dynamic AI Configuration State
-  const [isAiConfigured, setIsAiConfigured] = useState(!!process.env.API_KEY);
 
   useEffect(() => {
     const init = async () => {
@@ -137,27 +133,7 @@ const App: React.FC = () => {
       }
     };
     init();
-
-    // Poll for API key presence if not initially found
-    const keyCheckInterval = setInterval(async () => {
-      const hasKey = !!process.env.API_KEY || (typeof window !== 'undefined' && (window as any).aistudio && await (window as any).aistudio.hasSelectedApiKey());
-      setIsAiConfigured(!!hasKey);
-    }, 2000);
-
-    return () => clearInterval(keyCheckInterval);
   }, []);
-
-  const handleOpenAiKeySelector = async () => {
-    if (typeof window !== 'undefined' && (window as any).aistudio) {
-      try {
-        await (window as any).aistudio.openSelectKey();
-        // Race condition mitigation: assume success and update state
-        setIsAiConfigured(true);
-      } catch (e) {
-        console.error("Failed to open key selector", e);
-      }
-    }
-  };
 
   const isAdmin = currentUser?.role === UserRole.ADMIN;
 
@@ -198,17 +174,12 @@ const App: React.FC = () => {
   const handleRunAiAnalysis = async () => {
     if (!isAdmin) return;
     setLoadingAi(true);
-    setAiError(null);
     try {
-      const result = await geminiService.analyzeProjectStatus(sites);
+      const result = await strategyEngine.analyzeProjectStatus(sites);
       setAiAnalysis(result);
       setActiveTab('ai');
     } catch (error: any) {
-      if (error.message.includes("entity was not found") || error.message.includes("missing")) {
-        setAiError("API connection lost. Please re-connect AI using the sidebar.");
-      } else {
-        setAiError(error.message);
-      }
+      console.error(error);
     } finally {
       setLoadingAi(false);
     }
@@ -217,9 +188,8 @@ const App: React.FC = () => {
   const handleAutoSchedule = async () => {
     if (!isAdmin) return;
     setScheduling(true);
-    setAiError(null);
     try {
-      const schedule = await geminiService.generateDeploymentSchedule(sites);
+      const schedule = await strategyEngine.generateDeploymentSchedule(sites);
       const updatedSites = sites.map(s => {
         const item = schedule.find((sch: any) => sch.siteId === s.id);
         if (item) return { ...s, scheduledDate: item.scheduledDate, status: SiteStatus.PLANNED };
@@ -228,7 +198,7 @@ const App: React.FC = () => {
       for (const site of updatedSites) await dbService.upsertSite(site);
       setSites(updatedSites);
     } catch (error: any) {
-      setAiError(error.message);
+      console.error(error);
     } finally {
       setScheduling(false);
     }
@@ -238,9 +208,8 @@ const App: React.FC = () => {
     if (!isAdmin) return;
     setLoadingWorkflow(true);
     setIsDBOperation(true);
-    setAiError(null);
     try {
-      const plan = await geminiService.getSwapPlan(site);
+      const plan = await strategyEngine.getSwapPlan(site);
       const technicalInstructions = { 
         steps: plan.steps || [], 
         alerts: plan.criticalAlerts || [],
@@ -251,7 +220,7 @@ const App: React.FC = () => {
       setSites(prev => prev.map(s => s.id === site.id ? updatedSite : s));
       setSelectedSite(updatedSite);
     } catch (error: any) {
-      setAiError(error.message);
+      console.error(error);
     } finally {
       setLoadingWorkflow(false);
       setIsDBOperation(false);
@@ -323,23 +292,6 @@ const App: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-slate-50 text-slate-900 overflow-hidden font-['Inter']">
-      {/* GLOBAL AI ERROR OVERLAY */}
-      {aiError && (
-        <div className="fixed bottom-10 right-10 z-[200] w-96 bg-white border border-red-100 rounded-3xl shadow-2xl p-6 animate-in slide-in-from-bottom duration-300">
-          <div className="flex items-start gap-4">
-            <div className="bg-red-50 p-2 rounded-xl text-red-500 shrink-0"><AlertTriangle size={24}/></div>
-            <div className="flex-1">
-              <h4 className="font-black text-slate-900 text-sm uppercase tracking-widest mb-1">AI Logic Fault</h4>
-              <p className="text-xs text-slate-500 leading-relaxed mb-4">{aiError}</p>
-              <div className="flex gap-4">
-                 <button onClick={() => { setAiError(null); handleOpenAiKeySelector(); }} className="text-[10px] font-black uppercase text-blue-600 tracking-widest hover:underline flex items-center gap-1"><RefreshCw size={12}/> Re-connect AI</button>
-                 <button onClick={() => setAiError(null)} className="text-[10px] font-black uppercase text-slate-400 tracking-widest hover:underline">Dismiss</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
       <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col border-r border-slate-800 shrink-0">
         <div className="p-6 flex items-center gap-3">
           <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center font-bold text-white text-xl shadow-lg">E</div>
@@ -355,40 +307,22 @@ const App: React.FC = () => {
           <NavItem active={activeTab === 'plan'} onClick={() => setActiveTab('plan')} icon={<Calendar size={18}/>} label="Planning" />
           <NavItem active={activeTab === 'actual'} onClick={() => setActiveTab('actual')} icon={<PlayCircle size={18}/>} label="Field Ops" />
           <NavItem active={activeTab === 'map'} onClick={() => setActiveTab('map')} icon={<MapIcon size={18}/>} label="Deployment Map" />
-          {isAdmin && <NavItem active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<BrainCircuit size={18}/>} label="AI Strategy" />}
+          {isAdmin && <NavItem active={activeTab === 'ai'} onClick={() => setActiveTab('ai')} icon={<Cpu size={18}/>} label="Edge AI" />}
         </nav>
 
         <div className="p-4 border-t border-slate-800 space-y-4">
-          {/* DYNAMIC SYSTEM INTELLIGENCE STATUS */}
-          <button 
-            onClick={handleOpenAiKeySelector}
-            className={`w-full px-4 py-3 rounded-xl border transition-all text-left group ${isAiConfigured ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-red-500/5 border-red-500/20 hover:bg-red-500/10'}`}
-          >
+          <div className="w-full px-4 py-3 rounded-xl border bg-emerald-500/5 border-emerald-500/20 text-left">
             <div className="flex items-center gap-3">
-              {isAiConfigured ? (
-                <div className="relative">
-                  <Wifi className="text-emerald-400" size={14}/>
-                  <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-ping"></span>
-                </div>
-              ) : (
-                <WifiOff className="text-red-400" size={14}/>
-              )}
+              <div className="relative">
+                <ShieldCheck className="text-emerald-400" size={14}/>
+                <span className="absolute -top-1 -right-1 w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+              </div>
               <div>
-                <p className={`text-[9px] font-black uppercase tracking-widest ${isAiConfigured ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {isAiConfigured ? 'AI Core: Active' : 'AI Core: Offline'}
-                </p>
-                <p className="text-[8px] text-slate-500 mt-0.5 group-hover:text-slate-300 transition-colors">
-                  {isAiConfigured ? 'Cluster Synchronized' : 'Tap to Add Environment'}
-                </p>
+                <p className="text-[9px] font-black uppercase tracking-widest text-emerald-400">Edge Intelligence</p>
+                <p className="text-[8px] text-slate-500 mt-0.5">Operational (Offline)</p>
               </div>
             </div>
-            {!isAiConfigured && (
-               <div className="mt-2 pt-2 border-t border-red-500/10 flex items-center justify-between">
-                  <span className="text-[8px] font-black text-red-400 uppercase tracking-widest">Connect API</span>
-                  <ExternalLink size={10} className="text-red-400"/>
-               </div>
-            )}
-          </button>
+          </div>
 
           <div className="px-4 py-3 bg-slate-800/40 rounded-xl flex items-center gap-3">
              <div className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-blue-400 text-[10px] font-black">{currentUser.role[0]}</div>
@@ -405,38 +339,14 @@ const App: React.FC = () => {
             <input type="text" placeholder="Search telemetry..." className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-blue-500/20 transition-all" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
           <div className="flex items-center gap-4">
-             {!isAiConfigured && (
-               <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all">
-                 <Info size={14}/> Billing Docs
-               </a>
-             )}
+             <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 text-slate-500 rounded-lg text-[10px] font-black uppercase tracking-widest">
+                <WifiOff size={14}/> Field Mode
+             </div>
              {isAdmin && <button onClick={async () => { if(window.confirm('Purge local cache?')) { await dbService.clearDatabase(); setSites([]); } }} className="p-2 text-slate-400 hover:text-red-500 transition-colors"><RefreshCw size={18}/></button>}
           </div>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 bg-[#fdfdfd]">
-          {!isAiConfigured && activeTab === 'ai' && (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-6 animate-in fade-in duration-700">
-               <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center text-red-500 shadow-inner">
-                 <Key size={48} className="animate-pulse"/>
-               </div>
-               <div className="max-w-md">
-                 <h2 className="text-2xl font-black text-slate-900 mb-2">AI Configuration Required</h2>
-                 <p className="text-slate-500 text-sm leading-relaxed mb-8">The Infrastructure Strategist requires a valid Gemini API Key to process nationwide swap telemetry. Please select or add your key to proceed.</p>
-                 <button 
-                  onClick={handleOpenAiKeySelector}
-                  className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-black shadow-xl shadow-blue-500/30 hover:bg-blue-700 transition-all active:scale-95 flex items-center gap-3 mx-auto"
-                 >
-                   <Wifi size={20}/> Connect Cloud Intelligence
-                 </button>
-                 <div className="mt-6 text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center justify-center gap-4">
-                    <span className="flex items-center gap-1"><ShieldCheck size={12}/> Secure Handshake</span>
-                    <span className="flex items-center gap-1"><Radio size={12}/> Cloudflare Integrated</span>
-                 </div>
-               </div>
-            </div>
-          )}
-
           {activeTab === 'monitoring' && (
             <div className="space-y-8 animate-in fade-in duration-500">
               <div className="flex justify-between items-end">
@@ -529,8 +439,8 @@ const App: React.FC = () => {
           {activeTab === 'plan' && (
             <div className="animate-in fade-in duration-500">
                <div className="flex justify-between items-center mb-8">
-                  <div><h2 className="text-2xl font-bold text-slate-900">Batch Planning</h2><p className="text-slate-500 text-sm mt-1">Gemini AI Optimized Scheduling</p></div>
-                  {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling || !isAiConfigured} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all disabled:opacity-50">{scheduling ? <Loader2 className="animate-spin" size={18}/> : <Calendar size={18}/>} AI Scheduler</button>}
+                  <div><h2 className="text-2xl font-bold text-slate-900">Batch Planning</h2><p className="text-slate-500 text-sm mt-1">Local Optimized Scheduling</p></div>
+                  {isAdmin && <button onClick={handleAutoSchedule} disabled={scheduling} className="bg-slate-900 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg hover:bg-slate-800 transition-all disabled:opacity-50">{scheduling ? <Loader2 className="animate-spin" size={18}/> : <Calendar size={18}/>} Edge Scheduler</button>}
                </div>
                <div className="space-y-4">
                  {sites.filter(s => s.status !== SiteStatus.COMPLETED).length === 0 ? (
@@ -552,7 +462,7 @@ const App: React.FC = () => {
 
           {activeTab === 'actual' && (
             <div className="animate-in fade-in duration-500">
-               <div className="mb-8"><h2 className="text-2xl font-bold text-slate-900">Field Handover</h2><p className="text-slate-500 text-sm mt-1">Live procedure tracking</p></div>
+               <div className="mb-8"><h2 className="text-2xl font-bold text-slate-900">Field Handover</h2><p className="text-slate-500 text-sm mt-1">Local procedure tracking</p></div>
                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                   {sites.filter(s => s.status === SiteStatus.IN_PROGRESS).length === 0 ? (
                     <div className="lg:col-span-2 p-20 text-center bg-white border border-dashed border-slate-200 rounded-3xl">
@@ -581,17 +491,17 @@ const App: React.FC = () => {
 
           {activeTab === 'map' && <SiteMap sites={sites} onSiteClick={s => { setSelectedSite(s); setModalMode('view'); }} />}
 
-          {activeTab === 'ai' && isAdmin && isAiConfigured && (
+          {activeTab === 'ai' && isAdmin && (
             <div className="animate-in slide-in-from-right-4 duration-500">
                <div className="mb-8 flex items-center justify-between">
-                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><BrainCircuit className="text-blue-600" size={28} /> Project Strategist</h2><p className="text-slate-500 text-sm mt-1">Cognitive analysis of nationwide swap telemetry</p></div>
-                  <button onClick={handleRunAiAnalysis} disabled={loadingAi} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} Synthesize</button>
+                  <div><h2 className="text-2xl font-bold text-slate-900 flex items-center gap-3"><Cpu className="text-blue-600" size={28} /> Nodal Strategist</h2><p className="text-slate-500 text-sm mt-1">Offline cognitive analysis of swap telemetry</p></div>
+                  <button onClick={handleRunAiAnalysis} disabled={loadingAi} className="bg-blue-600 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition-all flex items-center gap-2 disabled:opacity-50">{loadingAi ? <Loader2 className="animate-spin" size={18}/> : <Zap size={18} />} Compute Insights</button>
                </div>
                
                {loadingAi && (
                  <div className="bg-white border border-slate-200 rounded-3xl p-20 text-center">
                     <Loader2 className="animate-spin text-blue-600 mx-auto mb-6" size={48} />
-                    <h3 className="text-lg font-bold text-slate-900 mb-2">Engaging Core Cluster</h3>
+                    <h3 className="text-lg font-bold text-slate-900 mb-2">Engaging Local Edge Compute</h3>
                     <p className="text-sm text-slate-500">Processing hardware dependencies and regional risk factors...</p>
                  </div>
                )}
@@ -620,7 +530,7 @@ const App: React.FC = () => {
                       <div className="w-full max-w-xs bg-white/20 h-3 rounded-full overflow-hidden">
                         <div className="bg-white h-full transition-all duration-1000" style={{width: aiAnalysis.projectHealth}}></div>
                       </div>
-                      <p className="mt-6 text-[10px] font-black uppercase text-blue-100 tracking-[0.3em]">Telemetry Verified</p>
+                      <p className="mt-6 text-[10px] font-black uppercase text-blue-100 tracking-[0.3em]">Edge Computed • Telemetry Verified</p>
                     </div>
                  </div>
                )}
@@ -641,7 +551,7 @@ const App: React.FC = () => {
               {(isDBOperation || loadingWorkflow) && (
                 <div className="absolute inset-0 bg-white/60 flex flex-col items-center justify-center z-20">
                   <Loader2 className="animate-spin text-blue-600 mb-4" size={48} />
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{loadingWorkflow ? 'AI Generating Procedure...' : 'Syncing Data...'}</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{loadingWorkflow ? 'Computing Local Procedure...' : 'Syncing Data...'}</span>
                 </div>
               )}
               <div className="flex justify-between items-start mb-10">
@@ -722,16 +632,16 @@ const App: React.FC = () => {
 
                 {modalMode === 'view' && isAdmin && (
                   <div className="bg-slate-900 rounded-3xl p-8 text-white relative shadow-xl">
-                    <div className="flex justify-between items-center mb-6"><h4 className="font-bold text-lg flex items-center gap-2"><ShieldCheck size={22} className="text-emerald-400"/> Swap MOP</h4>{selectedSite.technicalInstructions && <span className="text-[9px] font-black uppercase text-emerald-400">Validated</span>}</div>
+                    <div className="flex justify-between items-center mb-6"><h4 className="font-bold text-lg flex items-center gap-2"><ShieldCheck size={22} className="text-emerald-400"/> Local Swap MOP</h4>{selectedSite.technicalInstructions && <span className="text-[9px] font-black uppercase text-emerald-400">Validated</span>}</div>
                     {selectedSite.technicalInstructions ? (
                       <div className="space-y-4">
                         {selectedSite.technicalInstructions.steps.map((s, i) => (<div key={i} className="flex gap-4 p-4 bg-white/5 rounded-2xl border border-white/5"><div className="text-blue-400 font-black text-xs">{i+1}.</div><div className="text-sm font-medium">{s.task}</div></div>))}
-                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="text-[10px] text-blue-400 font-black uppercase mt-4 flex items-center gap-1 hover:underline disabled:opacity-50" disabled={!isAiConfigured}><RefreshCw size={12}/> Re-synthesize MOP</button>
+                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="text-[10px] text-blue-400 font-black uppercase mt-4 flex items-center gap-1 hover:underline"><RefreshCw size={12}/> Re-compute Local MOP</button>
                       </div>
                     ) : (
                       <div className="text-center py-6">
-                        <p className="text-slate-500 text-sm mb-6">Procedural data not yet synthesized.</p>
-                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} disabled={!isAiConfigured} className="w-full bg-blue-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all hover:bg-blue-500 shadow-lg disabled:opacity-50"><BrainCircuit size={18}/> Generate Procedure</button>
+                        <p className="text-slate-500 text-sm mb-6">Procedural data not yet computed.</p>
+                        <button onClick={() => handleGenerateWorkflow(selectedSite!)} className="w-full bg-blue-600 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 transition-all hover:bg-blue-500 shadow-lg"><Cpu size={18}/> Compute Local Procedure</button>
                       </div>
                     )}
                   </div>
@@ -741,7 +651,7 @@ const App: React.FC = () => {
                    {modalMode === 'view' ? (
                      <>{isAdmin && <button onClick={() => { setFormData(selectedSite); setModalMode('edit'); }} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all shadow-lg">Modify Dossier</button>}<button onClick={() => alert("Printing Procedure...")} className="flex-1 bg-slate-900 text-white py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all">Print PDF</button></>
                    ) : (
-                     <><button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all shadow-lg">Commit to Repository</button><button onClick={() => setModalMode('view')} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all">Cancel</button></>
+                     <><button onClick={handleSaveSite} className="flex-1 bg-blue-600 text-white py-4 rounded-2xl font-bold hover:bg-blue-500 transition-all shadow-lg">Commit to Local Storage</button><button onClick={() => setModalMode('view')} className="flex-1 bg-white border border-slate-200 py-4 rounded-2xl font-bold hover:bg-slate-50 transition-all">Cancel</button></>
                    )}
                 </div>
               </div>
